@@ -1,8 +1,8 @@
 # Data Processing
 #
+from __future__ import absolute_import, division, print_function
 from pydub import AudioSegment
 from tqdm import tqdm
-from __future__ import absolute_import, division, print_function
 import datasets
 
 # Data Pre-processing, splitting the Chapters into audio chunks/segments
