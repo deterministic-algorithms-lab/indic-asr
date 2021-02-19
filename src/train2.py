@@ -97,7 +97,7 @@ def eval_model(model,tokenizer,val_dataloader,device):
         labels.to(device)
         label_lengths.to(device)
         loss = ctc_loss(logits.transpose(0,1), labels, find_lengths(logits, tokenizer.pad_token_id), label_lengths)
-
+        loss=loss.cpu().detach().numpy()
         # loss=loss.item()
         epoch_loss += loss
 
@@ -135,9 +135,9 @@ if __name__ =='__main__':
     ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
     ds=ds.map(map_to_array)
     train_dataset,val_dataset=ds,ds
-
-    train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, **params)
-    train_model(model,tokenizer,train_dataloader,device)
+    if(config.train):
+        train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, **params)
+        train_model(model,tokenizer,train_dataloader,device)
     
     if(config.eval):
         val_dataloader=torch.utils.data.DataLoader(dataset=val_dataset, **params)

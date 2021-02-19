@@ -14,3 +14,4 @@ class config:
     BATCH_SIZE=1
     SHUFFLE=False
     eval=False
+    train=False
