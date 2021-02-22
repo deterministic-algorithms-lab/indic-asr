@@ -5,11 +5,11 @@ import torch.nn.functional as F
 import os
 import soundfile as sf
 
+import argparse
 from tqdm import tqdm
 from configs import config
 from model import get_model
 from tokenizer import Wav2Vec2Tok
-from dataset import ASR
 from datasets import load_dataset
 
 
@@ -109,6 +109,11 @@ def eval_model(model,tokenizer,val_dataloader,device):
 
 if __name__ =='__main__':
     
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-dl', '--data_loader', type=str, default=config.data_loader,
+                    help='Path to the Data Loader file; Ex: <TO/PATH/data_loader.py>')
+    args = parser.parse_args()
+    
     tokenizer=Wav2Vec2Tok.from_pretrained(config.model)
     
     model=get_model(tokenizer)
@@ -119,22 +124,20 @@ if __name__ =='__main__':
     params = {'batch_size': config.BATCH_SIZE,
       'shuffle': config.SHUFFLE,}
     
-    
-    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("running on ",device)
-    
-#     train_dataset,val_dataset=ASR()._split_generators()
 
-    def map_to_array(batch):
-        speech, _ = sf.read(batch["file"])
-        batch["speech"] = speech
-        return batch
-
+    #def map_to_array(batch):
+    #    speech, _ = sf.read(batch["file"])
+    #    batch["speech"] = speech
+    #    return batch
     
-    ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
-    ds=ds.map(map_to_array)
-    train_dataset,val_dataset=ds,ds
+    train_dataset = load_dataset(args.data_loader, name="asr_indian", split="train")
+    val_dataset = load_dataset(args.data_loader, name="asr_indian", split="validation")
+    
+    #ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
+    #ds=ds.map(map_to_array)
+    #train_dataset,val_dataset=ds,ds
     if(config.train):
         train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, **params)
         train_model(model,tokenizer,train_dataloader,device)
@@ -147,22 +150,16 @@ if __name__ =='__main__':
     
     
     
-    model = model.cpu()
+    #model = model.cpu()
 
-    input_values = tokenizer(ds["speech"][:2], return_tensors="pt", padding="longest").input_values  # Batch size 1
+    #input_values = tokenizer(ds["speech"][:2], return_tensors="pt", padding="longest").input_values  # Batch size 1
 
     # retrieve logits
-    logits = model(input_values).logits
+    #logits = model(input_values).logits
 
     # take argmax and decode
-    predicted_ids = torch.argmax(logits, dim=-1)
-    transcription = tokenizer.batch_decode(predicted_ids)
-    print(transcription)
-
-  
-    
-    
-    
+    #predicted_ids = torch.argmax(logits, dim=-1)
+    #transcription = tokenizer.batch_decode(predicted_ids)
+    #print(transcription)
     
     #tqdm display loss
-    
