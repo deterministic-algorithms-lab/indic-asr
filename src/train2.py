@@ -111,7 +111,7 @@ if __name__ =='__main__':
     
     parser = argparse.ArgumentParser()
     parser.add_argument('-dl', '--data_loader', type=str,
-                    required=True, help='Path to the Data Loader file; Ex: <Data-Processing/data_loader>')
+                    required=True, help='Path to the Data Loader file; Ex: <Data-Processing/data_loader/data_loader.py>')
     parser.add_argument('-d', '--data', type=str,
                     required=True, help='Type of Data; Ex: Hindi-English, Bengali-English, Hindi, Marathi')
     args = parser.parse_args()
@@ -134,8 +134,8 @@ if __name__ =='__main__':
         batch["speech"] = speech
         return batch
     
-    train_dataset = load_dataset(args.data_loader, name="asr_indian", data_dir="/home/krishnarajule3/ASR/data/"+args.data, split="train")
-    val_dataset = load_dataset(args.data_loader, name="asr_indian", data_dir="/home/krishnarajule3/ASR/data/"+args.data, split="validation")
+    train_dataset = load_dataset(args.data_loader, name="asr_indian", data_dir=args.data, split="train")
+    val_dataset = load_dataset(args.data_loader, name="asr_indian", data_dir=args.data, split="validation")
     
     #ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
     #ds=ds.map(map_to_array)
