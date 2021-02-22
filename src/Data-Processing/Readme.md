@@ -1,4 +1,4 @@
 # Data Processing
 
-- Data Loaders
+- Data Loader
 - Data Preprocessing
