@@ -2,6 +2,7 @@
 #
 from __future__ import absolute_import, division, print_function
 import datasets
+from configs import config
 from tqdm import tqdm
 
 _CITATION = "--"
@@ -41,13 +42,13 @@ class ASR(datasets.GeneratorBasedBuilder):
 
     def _split_generators(self):
         return [
-            datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"text_path": "/home/krishnarajule3/ASR/data/"+self.config.data_dir+"/train/transcript/text", "audio_path": "/home/krishnarajule3/ASR/data/"+self.config.data_dir+"/train/audio/"}),
-            datasets.SplitGenerator(name=datasets.Split.VALIDATION, gen_kwargs={"text_path": "/home/krishnarajule3/ASR/data/"+self.config.data_dir+"/dev/transcript/text", "audio_path": "/home/krishnarajule3/ASR/data/"+self.config.data_dir+"/dev/audio/"}),
-            #datasets.SplitGenerator(name=datasets.Split.TEST, gen_kwargs={"text_path": "/home/krishnarajule3/ASR/data/"+self.config.data_dir+"/test/transcript/text", "audio_path": "/home/krishnarajule3/ASR/data/"+self.config.data_dir+"/test/audio/"}),
+            datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"trans_path": config.train_trans, "audio_path": config.train_audio}),
+            datasets.SplitGenerator(name=datasets.Split.VALIDATION, gen_kwargs={"trans_path": config.dev_trans, "audio_path": config.dev_audio}),
+            #datasets.SplitGenerator(name=datasets.Split.TEST, gen_kwargs={"trans_path": config.test_trans, "audio_path": config.test_audio}),
         ]
 
-    def _generate_examples(self, text_path, audio_path):
-        with open(text_path, "r", encoding="utf-8") as f:
+    def _generate_examples(self, trans_path, audio_path):
+        with open(trans_path, "r", encoding="utf-8") as f:
             for line in tqdm(f):
                 line = line.strip()
                 key, text = line.split(" ", 1)
