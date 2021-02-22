@@ -5,11 +5,11 @@ import torch.nn.functional as F
 import os
 import soundfile as sf
 
+import argparse
 from tqdm import tqdm
 from configs import config
 from model import get_model
 from tokenizer import Wav2Vec2Tok
-from dataset import ASR
 from datasets import load_dataset
 
 
@@ -109,6 +109,13 @@ def eval_model(model,tokenizer,val_dataloader,device):
 
 if __name__ =='__main__':
     
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-dl', '--data_loader', type=str,
+                    required=True, help='Path to the Data Loader file; Ex: <Data-Processing/data_loader>')
+    parser.add_argument('-d', '--data', type=str,
+                    required=True, help='Type of Data; Ex: Hindi-English, Bengali-English, Hindi, Marathi')
+    args = parser.parse_args()
+    
     tokenizer=Wav2Vec2Tok.from_pretrained(config.model)
     
     model=get_model(tokenizer)
@@ -119,22 +126,20 @@ if __name__ =='__main__':
     params = {'batch_size': config.BATCH_SIZE,
       'shuffle': config.SHUFFLE,}
     
-    
-    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("running on ",device)
-    
-#     train_dataset,val_dataset=ASR()._split_generators()
 
     def map_to_array(batch):
         speech, _ = sf.read(batch["file"])
         batch["speech"] = speech
         return batch
-
     
-    ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
-    ds=ds.map(map_to_array)
-    train_dataset,val_dataset=ds,ds
+    train_dataset = load_dataset(args.data_loader, name="asr_indian", data_dir="/home/krishnarajule3/ASR/data/"+args.data, split="train")
+    val_dataset = load_dataset(args.data_loader, name="asr_indian", data_dir="/home/krishnarajule3/ASR/data/"+args.data, split="validation")
+    
+    #ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
+    #ds=ds.map(map_to_array)
+    #train_dataset,val_dataset=ds,ds
     if(config.train):
         train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, **params)
         train_model(model,tokenizer,train_dataloader,device)
