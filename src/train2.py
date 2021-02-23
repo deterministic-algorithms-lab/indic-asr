@@ -109,11 +109,6 @@ def eval_model(model,tokenizer,val_dataloader,device):
 
 if __name__ =='__main__':
     
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-dl', '--data_loader', type=str, default=config.data_loader,
-                    help='Path to the Data Loader file; Ex: <TO/PATH/data_loader.py>')
-    args = parser.parse_args()
-    
     tokenizer=Wav2Vec2Tok.from_pretrained(config.model)
     
     model=get_model(tokenizer)
@@ -132,8 +127,8 @@ if __name__ =='__main__':
     #    batch["speech"] = speech
     #    return batch
     
-    train_dataset = load_dataset(args.data_loader, name="asr_indian", split="train")
-    val_dataset = load_dataset(args.data_loader, name="asr_indian", split="validation")
+    train_dataset = load_dataset(config.data_loader, name="asr_indian", split="train")
+    val_dataset = load_dataset(config.data_loader, name="asr_indian", split="validation")
     
     #ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
     #ds=ds.map(map_to_array)
