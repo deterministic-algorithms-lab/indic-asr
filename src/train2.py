@@ -145,7 +145,7 @@ def collate_fn(batch, tokenizer):
     input_values = tokenizer(speech_lis, return_tensors="pt", 
                                      padding='longest').input_values.to(config.device)
 
-    labels, label_lengths = tokenizer.batch_tokenize(d['text'])
+    labels, label_lengths = tokenizer.batch_tokenize(text_lis)
 
     return (input_values, labels, label_lengths)
 
