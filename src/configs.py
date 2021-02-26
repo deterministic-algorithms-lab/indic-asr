@@ -16,7 +16,7 @@ class config:
     
     os.makedirs(output_directory, exist_ok=True)
     
-    BATCH_SIZE=1
+    BATCH_SIZE=5
     SHUFFLE=False
     eval=False
     train=False
