@@ -7,11 +7,11 @@ import soundfile as sf
 
 import argparse
 from tqdm import tqdm
-from configs import config
+from configs import config, get_all_params_dict
 from model import get_model
 from tokenizer import Wav2Vec2Tok
 from datasets import load_dataset
-
+import wandb
 
 def find_lengths(logits, pad_id: int) -> torch.FloatTensor:
     """
@@ -66,7 +66,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader):
 
             loss.backward()
             
-            torch.nn.utils.clip_grad_norm_(model.parameters(), configs.clip_grad_norm)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad_norm)
 
             optimizer.step()
 
@@ -76,11 +76,14 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader):
             if(iters%config.num_iters_checkpoint==0):
                 
                 val_losses.append(eval_model(model, tokenizer, val_dataloader))
+                
+                wandb.log({'validation_loss' : val_losses[-1]})
+
                 if min(val_losses)==val_losses[-1]:
                     save_checkpoint(model, str(iters))
         
         print("Mean loss for epoch %d : "%epoch, (epoch_loss / num_train_batches))
-    
+
     save_checkpoint(model, str(iters))
     
     
@@ -115,18 +118,23 @@ def eval_model(model, tokenizer, val_dataloader):
     return (epoch_loss / num_valid_batches)
 
 if __name__ =='__main__':
+    all_params_dict = get_all_params_dict(config)
     
+    wandb.init(project="wav2vec2", entity="interspeech-asr", config=all_params_dict)
+
     tokenizer = Wav2Vec2Tok.from_pretrained(config.model)
     
     model = get_model(tokenizer)
-
+    
+    wandb.watch(model)
+    
     if(config.prev_checkpoint!=""):
         model=load_checkpoint(model,config.prev_checkpoint)
     
     params = {'batch_size': config.BATCH_SIZE,
               'shuffle': config.SHUFFLE,}
     
-    print("running on ", configs.device)
+    print("running on ", config.device)
 
     train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[10%:]", writer_batch_size=1000)
     val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:10%]", writer_batch_size=1000)

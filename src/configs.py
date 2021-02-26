@@ -21,3 +21,10 @@ class config:
     eval=False
     train=False
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+def get_all_params_dict(config):
+    params = {}
+    for k, v in config.__dict__.items():
+        if not ( callable(v) or (k.startswith('__') and k.endswith('__'))):
+            params[k]=v
+    return params
