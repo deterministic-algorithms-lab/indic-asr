@@ -22,8 +22,10 @@ def find_lengths(logits, pad_id: int) -> torch.FloatTensor:
 
 def save_checkpoint(model, name: str):
     print("saving model!")
-    model.save_pretrained(os.path.join(config.output_directory, config.model+'_'+name))
-    
+    model_path = os.path.join(config.output_directory, config.model+'_'+name)
+    model.save_pretrained(model_path)
+    wandb.save(model_path)
+
 def load_checkpoint(model, path: str):
     model.load_state_dict(torch.load(config.prev_checkpoint+"/pytorch_model.bin"))
     print("model loaded!")
