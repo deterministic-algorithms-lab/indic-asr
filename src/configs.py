@@ -3,7 +3,7 @@ import torch
 
 class config:
     
-    data_dir="/home/krishnarajule3/ASR/data/Hindi-English/
+    data_dir="/home/krishnarajule3/ASR/data/Hindi-English/"
     data_loading_script="/home/datasets/code_switch_asr"
 
     model="facebook/wav2vec2-base-960h"
