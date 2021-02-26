@@ -137,7 +137,7 @@ def compute_metric(model, tokenizer, test_dataset):
         predicted_ids = torch.argmax(logits, dim=-1).cpu()
         transcriptions = tokenizer.batch_decode(predicted_ids)
         
-        metric.add_batch(predictions=transcriptions, references=[d['text']])
+        metric.add_batch(predictions=transcriptions, references=[d['text'].lower()])
     
     score = metric.compute()
     print("Evaluation metric: ", score)
@@ -145,7 +145,7 @@ def compute_metric(model, tokenizer, test_dataset):
 
 def collate_fn(batch, tokenizer):
     speech_lis = [elem["speech"] for elem in batch]
-    text_lis = [elem["text"] for elem in batch]
+    text_lis = [elem["text"].lower() for elem in batch]
     
     input_values = tokenizer(speech_lis, return_tensors="pt", 
                                      padding='longest').input_values
