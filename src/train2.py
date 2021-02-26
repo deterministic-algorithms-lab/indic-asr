@@ -30,7 +30,8 @@ def load_checkpoint(model, path: str):
     model.load_state_dict(torch.load(config.prev_checkpoint+"/pytorch_model.bin"))
     print("model loaded!")
     return model
-    
+
+
 def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloader):
     
     model.train()
@@ -79,22 +80,22 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloa
             epoch_loss += loss
             
             if(iters%config.num_iters_checkpoint==0):
+                model.eval()
                 
                 val_losses.append(eval_model(model, tokenizer, val_dataloader))
                 
                 wandb.log({'validation_loss' : val_losses[-1],
                             'wer_on_test_set': compute_metric(model, tokenizer, test_dataloader)})
-
+                
+                model.train()
                 if min(val_losses)==val_losses[-1]:
                     save_checkpoint(model, str(iters))
         
         print("Mean loss for epoch %d : "%epoch, (epoch_loss / num_train_batches))
 
     save_checkpoint(model, str(iters))
-    
-    
+
 def eval_model(model, tokenizer, val_dataloader):
-    model.eval()
     
     ctc_loss = nn.CTCLoss()
 
@@ -117,7 +118,7 @@ def eval_model(model, tokenizer, val_dataloader):
         
         loss = ctc_loss(logits.transpose(0,1), labels, find_lengths(logits, tokenizer.pad_token_id), label_lengths)
         
-        loss=loss.item()
+        loss = loss.item()
         
         epoch_loss += loss
 
