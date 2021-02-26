@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from transformers import Wav2Vec2Model, Wav2Vec2ForCTC
-from configs import  config
+from configs import config
 
 def get_model(tokenizer):
     
@@ -23,4 +23,4 @@ def get_model(tokenizer):
 
     model.lm_head = new_lm_head
     
-    return model
+    return model.to(config.device)
