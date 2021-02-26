@@ -17,8 +17,9 @@ def find_lengths(logits, pad_id: int) -> torch.FloatTensor:
     """
     Function to find lengths of output sequences
     """
-    preds = torch.argmax(logits, dim=-1)
-    return torch.sum(torch.where(preds!=pad_id, 1, 0), axis=-1)
+    #preds = torch.argmax(logits, dim=-1)
+    #return torch.sum(torch.where(preds!=pad_id, 1, 0), axis=-1)
+    return torch.tensor([logits.shape[1]]*logits.shape[0], dtype=torch.int16, device=config.device)
 
 def save_checkpoint(model, name: str):
     print("saving model!")

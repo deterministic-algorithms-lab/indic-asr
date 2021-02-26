@@ -38,7 +38,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         lengths = [len(sentence) for sentence in sentences]
         max_len = max(lengths)
         for i, sentence in enumerate(sentences):
-            sentences[i] = sentence + [self.eos_token_id]*(max_len-len(sentence))
+            sentences[i] = sentence + [self.pad_token_id]*(max_len-len(sentence))
         return torch.tensor(sentences, dtype=torch.float32, device=config.device), torch.tensor(lengths, device=config.device)
     
     def batch_tokenize(self, texts: List[str], **kwargs) -> Tuple[torch.FloatTensor, torch.IntTensor]:
