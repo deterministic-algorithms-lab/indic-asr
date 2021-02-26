@@ -10,7 +10,7 @@ from tqdm import tqdm
 from configs import config, get_all_params_dict
 from model import get_model
 from tokenizer import Wav2Vec2Tok
-from datasets import load_dataset
+from datasets import load_dataset, load_metric
 import wandb
 
 def find_lengths(logits, pad_id: int) -> torch.FloatTensor:
@@ -31,7 +31,7 @@ def load_checkpoint(model, path: str):
     print("model loaded!")
     return model
     
-def train_model(model, tokenizer, train_dataloader, val_dataloader):
+def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloader):
     
     model.train()
 
@@ -44,6 +44,8 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader):
     val_losses = []
 
     for epoch in range(config.EPOCHS):
+        
+        loss=0
         epoch_loss = 0
         pbar=tqdm(train_dataloader, desc="Training epoch %d"%(epoch))
         
@@ -55,7 +57,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader):
             optimizer.zero_grad()
 
             input_values = tokenizer(d["speech"], return_tensors="pt", 
-                                     padding='longest').input_values.to(device)
+                                     padding='longest').input_values.to(config.device)
 
             logits = model(input_values).logits
 
@@ -79,7 +81,8 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader):
                 
                 val_losses.append(eval_model(model, tokenizer, val_dataloader))
                 
-                wandb.log({'validation_loss' : val_losses[-1]})
+                wandb.log({'validation_loss' : val_losses[-1],
+                            'wer_on_test_set': compute_metric(model, tokenizer, test_dataloader)})
 
                 if min(val_losses)==val_losses[-1]:
                     save_checkpoint(model, str(iters))
@@ -94,6 +97,7 @@ def eval_model(model, tokenizer, val_dataloader):
     
     ctc_loss = nn.CTCLoss()
 
+    loss=0
     epoch_loss = 0
     
     num_valid_batches = len(val_dataloader)
@@ -104,7 +108,7 @@ def eval_model(model, tokenizer, val_dataloader):
         pbar.set_postfix(loss = loss)
         
         input_values = tokenizer(d["speech"], return_tensors="pt", 
-                                     padding='longest').input_values.to(device)
+                                     padding='longest').input_values.to(config.device)
 
         logits = model(input_values).logits
 
@@ -118,6 +122,26 @@ def eval_model(model, tokenizer, val_dataloader):
 
     print("Mean validation loss:", (epoch_loss / num_valid_batches))
     return (epoch_loss / num_valid_batches)
+
+def compute_metric(model, tokenizer, test_dataloader):
+    metric = load_metric('wer')
+
+    pbar = tqdm(test_dataloader, desc="Computing metric")
+
+    for i, d in enumerate(pbar):
+        
+        input_values = tokenizer(d["speech"], return_tensors="pt", 
+                                     padding='longest').input_values.to(config.device)
+
+        logits = model(input_values).logits
+
+        predicted_ids = torch.argmax(logits, dim=-1)
+        transcriptions = tokenizer.batch_decode(predicted_ids)
+        
+        metric.add_batch(predictions=transcriptions, references=d['text'])
+    
+    score = metric.compute()
+    print("Evaluation metric: ", score)
 
 if __name__ =='__main__':
     all_params_dict = get_all_params_dict(config)
@@ -138,17 +162,18 @@ if __name__ =='__main__':
     
     print("running on ", config.device)
 
-    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[10%:]", writer_batch_size=1000)
-    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:10%]", writer_batch_size=1000)
+    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[2%:]", writer_batch_size=1000)
+    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2%]", writer_batch_size=1000)
     test_dataset = load_dataset(config.data_loading_script, name=config.data_dir, split="test", writer_batch_size=1000)
 
     if(config.train):
         train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, **params)
         val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, **params)
-        train_model(model, tokenizer, train_dataloader, val_dataloader)
+        test_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, **params)
+        train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloader)
     
     if(config.eval):
         test_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, **params)
-        eval_model(model, tokenizer, val_dataloader, device)
+        eval_model(model, tokenizer, val_dataloader)
     
     print("TRAINING DONE!")
