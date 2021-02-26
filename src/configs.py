@@ -21,6 +21,7 @@ class config:
     eval=False
     train=False
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    max_audio_len=576000
 
 def get_all_params_dict(config):
     params = {}
