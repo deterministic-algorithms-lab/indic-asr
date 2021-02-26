@@ -166,7 +166,7 @@ if __name__ =='__main__':
 
     train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[2%:]", writer_batch_size=1000)
     val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2%]", writer_batch_size=1000)
-    test_dataset = load_dataset(config.data_loading_script, name=config.data_dir, split="test", writer_batch_size=1000)
+    test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="test", writer_batch_size=1000)
 
     if(config.train):
         train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, **params)
