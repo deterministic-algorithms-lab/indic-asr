@@ -19,7 +19,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         """
         Converts a single str into a sequence of token ids.
         """
-        text = ' '.join(text.split(' '))
+        text = ' '.join(text.split())
         text = text.replace(' ', self.word_delimiter_token)
         tokens = [self.bos_token_id]
         
@@ -38,7 +38,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         lengths = [len(sentence) for sentence in sentences]
         max_len = max(lengths)
         for i, sentence in enumerate(sentences):
-            sentences[i] = sentence + [self.pad_token_id]*(max_len-len(sentence))
+            sentences[i] = sentence + [self.eos_token_id]*(max_len-len(sentence))
         return torch.tensor(sentences, dtype=torch.float32, device=config.device), torch.tensor(lengths, device=config.device)
     
     def batch_tokenize(self, texts: List[str], **kwargs) -> Tuple[torch.FloatTensor, torch.IntTensor]:
