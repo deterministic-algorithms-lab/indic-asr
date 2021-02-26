@@ -37,7 +37,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
     model.train()
 
     optimizer = optim.Adam(model.parameters(), lr=config.LR)
-    ctc_loss = nn.CTCLoss()
+    ctc_loss = nn.CTCLoss(zero_infinity=True)
     
     iters=0
     num_train_batches = len(train_dataloader)
@@ -94,7 +94,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
 
 def eval_model(model, tokenizer, val_dataloader):
     
-    ctc_loss = nn.CTCLoss()
+    ctc_loss = nn.CTCLoss(zero_infinity=True)
 
     loss=0
     epoch_loss = 0
