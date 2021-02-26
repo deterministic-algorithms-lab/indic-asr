@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from typing import List, Tuple
 from transformers import Wav2Vec2Tokenizer
+import configs
 
 class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     """
@@ -38,7 +39,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         max_len = max(lengths)
         for i, sentence in enumerate(sentences):
             sentences[i] = sentence + [self.pad_token_id]*(max_len-len(sentence))
-        return torch.tensor(sentences, dtype=torch.float32), torch.tensor(lengths)
+        return torch.tensor(sentences, dtype=torch.float32, device=configs.device), torch.tensor(lengths, device=configs.device)
     
     def batch_tokenize(self, texts: List[str], **kwargs) -> Tuple[torch.FloatTensor, torch.IntTensor]:
         """

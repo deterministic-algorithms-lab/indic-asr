@@ -3,10 +3,7 @@ import torch.nn as nn
 
 from transformers import Wav2Vec2Model, Wav2Vec2ForCTC
 from configs import  config
-# class Model:
-    
-#     def __init__(self,):
-#         model=
+import configs
 
 def get_model(tokenizer):
     
