@@ -64,7 +64,8 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader):
             loss = ctc_loss(logits.transpose(0,1), labels, 
                             find_lengths(logits, tokenizer.pad_token_id), label_lengths)
 
-            # print("Training loss : ", loss)
+            if i<100:
+                print("Training loss : ", loss)
 
             loss.backward()
             
