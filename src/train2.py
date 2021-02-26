@@ -173,8 +173,8 @@ if __name__ =='__main__':
     test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="test", writer_batch_size=1000)
 
     if(config.train):
-        train_dataloader = get_DataLoader(dataset=train_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
-        val_dataloader = get_DataLoader(dataset=val_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
+        train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
+        val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
         train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset)
     
     if(config.eval):
