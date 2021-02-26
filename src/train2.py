@@ -144,12 +144,12 @@ def collate_fn(batch, tokenizer):
     speech_lis = [elem["speech"] for elem in batch]
     text_lis = [elem["text"] for elem in batch]
     
-    input_values = tokenizer(speech_lis, return_tensors="pt", 
+    input_values = tokenizer(speech_lis, return_tensors="np", 
                                      padding='longest').input_values.to(config.device)
 
     labels, label_lengths = tokenizer.batch_tokenize(text_lis)
 
-    return (input_values, labels, label_lengths)
+    return (input_values.to(config.device), labels.to(config.device), label_lengths.to(config.device))
 
 if __name__ =='__main__':
     all_params_dict = get_all_params_dict(config)
