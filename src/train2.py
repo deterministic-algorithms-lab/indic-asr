@@ -139,6 +139,7 @@ def compute_metric(model, tokenizer, test_dataset):
     
     score = metric.compute()
     print("Evaluation metric: ", score)
+    return score
 
 def collate_fn(batch, tokenizer):
     speech_lis = [elem["speech"] for elem in batch]
