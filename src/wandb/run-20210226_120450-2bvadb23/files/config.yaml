@@ -1,0 +1,67 @@
+wandb_version: 1
+
+BATCH_SIZE:
+  desc: null
+  value: 5
+EPOCHS:
+  desc: null
+  value: 50
+LR:
+  desc: null
+  value: 1.0e-05
+SHUFFLE:
+  desc: null
+  value: false
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.10.20
+    framework: huggingface
+    huggingface_version: 4.3.3
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.7.10
+    t:
+      1:
+      - 1
+      - 11
+      2:
+      - 1
+      - 11
+      3:
+      - 1
+      4: 3.7.10
+      5: 0.10.20
+      6: 4.3.3
+      8:
+      - 5
+clip_grad_norm:
+  desc: null
+  value: 1.0
+data_dir:
+  desc: null
+  value: /home/krishnarajule3/ASR/data/Hindi-English/
+data_loading_script:
+  desc: null
+  value: /home/datasets/code_switch-asr
+device:
+  desc: null
+  value: cuda
+eval:
+  desc: null
+  value: true
+model:
+  desc: null
+  value: facebook/wav2vec2-base-960h
+num_iters_checkpoint:
+  desc: null
+  value: 2000
+output_directory:
+  desc: null
+  value: ./model/
+prev_checkpoint:
+  desc: null
+  value: ''
+train:
+  desc: null
+  value: true
