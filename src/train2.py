@@ -131,10 +131,10 @@ def compute_metric(model, tokenizer, test_dataset):
 
         logits = model(input_values).logits
 
-        predicted_ids = torch.argmax(logits, dim=-1)
+        predicted_ids = torch.argmax(logits, dim=-1).cpu()
         transcriptions = tokenizer.batch_decode(predicted_ids)
         
-        metric.add_batch(predictions=transcriptions, references=d['text'])
+        metric.add_batch(predictions=transcriptions, references=[d['text']])
     
     score = metric.compute()
     print("Evaluation metric: ", score)
