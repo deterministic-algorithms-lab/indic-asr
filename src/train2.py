@@ -57,6 +57,9 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
             iters+=1
             
             input_values, labels, label_lengths = d
+            if input_values.shape[1]>config.max_audio_len:
+                print("skipping batch : ", i)
+                continue
             
             optimizer.zero_grad()
 
