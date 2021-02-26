@@ -32,7 +32,7 @@ def load_checkpoint(model, path: str):
     return model
 
 
-def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloader):
+def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset):
     
     model.train()
 
@@ -55,14 +55,11 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloa
             
             iters+=1
             
+            input_values, labels, label_lengths = d
+            
             optimizer.zero_grad()
 
-            input_values = tokenizer(d["speech"], return_tensors="pt", 
-                                     padding='longest').input_values.to(config.device)
-
             logits = model(input_values).logits
-
-            labels, label_lengths = tokenizer.batch_tokenize(d['text'])
 
             loss = ctc_loss(logits.transpose(0,1), labels, 
                             find_lengths(logits, tokenizer.pad_token_id), label_lengths)
@@ -85,7 +82,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloa
                 val_losses.append(eval_model(model, tokenizer, val_dataloader))
                 
                 wandb.log({'validation_loss' : val_losses[-1],
-                            'wer_on_test_set': compute_metric(model, tokenizer, test_dataloader)})
+                            'wer_on_test_set': compute_metric(model, tokenizer, test_dataset)})
                 
                 model.train()
                 if min(val_losses)==val_losses[-1]:
@@ -109,12 +106,9 @@ def eval_model(model, tokenizer, val_dataloader):
     for i, d  in enumerate(pbar):
         pbar.set_postfix(loss = loss)
         
-        input_values = tokenizer(d["speech"], return_tensors="pt", 
-                                     padding='longest').input_values.to(config.device)
-
+        input_values, labels, label_lengths = d
+        
         logits = model(input_values).logits
-
-        labels, label_lengths = tokenizer.batch_tokenize(d['text'])
         
         loss = ctc_loss(logits.transpose(0,1), labels, find_lengths(logits, tokenizer.pad_token_id), label_lengths)
         
@@ -125,10 +119,10 @@ def eval_model(model, tokenizer, val_dataloader):
     print("Mean validation loss:", (epoch_loss / num_valid_batches))
     return (epoch_loss / num_valid_batches)
 
-def compute_metric(model, tokenizer, test_dataloader):
+def compute_metric(model, tokenizer, test_dataset):
     metric = load_metric('wer')
 
-    pbar = tqdm(test_dataloader, desc="Computing metric")
+    pbar = tqdm(test_dataset, desc="Computing metric")
 
     for i, d in enumerate(pbar):
         
@@ -145,6 +139,17 @@ def compute_metric(model, tokenizer, test_dataloader):
     score = metric.compute()
     print("Evaluation metric: ", score)
 
+def collate_fn(batch, tokenizer):
+    speech_lis = [elem["speech"] for elem in batch]
+    text_lis = [elem["text"] for elem in batch]
+    
+    input_values = tokenizer(speech_lis, return_tensors="pt", 
+                                     padding='longest').input_values.to(config.device)
+
+    labels, label_lengths = tokenizer.batch_tokenize(d['text'])
+
+    return (input_values, labels, label_lengths)
+
 if __name__ =='__main__':
     all_params_dict = get_all_params_dict(config)
     
@@ -159,8 +164,7 @@ if __name__ =='__main__':
     if(config.prev_checkpoint!=""):
         model=load_checkpoint(model,config.prev_checkpoint)
     
-    params = {'batch_size': config.BATCH_SIZE,
-              'shuffle': config.SHUFFLE,}
+    params = {'batch_size': config.BATCH_SIZE,}
     
     print("running on ", config.device)
 
@@ -169,13 +173,11 @@ if __name__ =='__main__':
     test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="test", writer_batch_size=1000)
 
     if(config.train):
-        train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, **params)
-        val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, **params)
-        test_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, **params)
-        train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloader)
+        train_dataloader = get_DataLoader(dataset=train_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
+        val_dataloader = get_DataLoader(dataset=val_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
+        train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset)
     
     if(config.eval):
-        test_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, **params)
-        eval_model(model, tokenizer, val_dataloader)
+        print(compute_metric(model, tokenizer, test_dataset))
     
     print("TRAINING DONE!")
