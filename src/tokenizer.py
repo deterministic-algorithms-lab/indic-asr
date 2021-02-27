@@ -19,7 +19,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
                 self._add_tokens(chr(i))
              
     def transliterate(self, text: str)-> str:
-        elems = re.split(text, r'([a-zA-Z]+)')
+        elems = re.split(r'([a-zA-Z]+)', text)
         text_elems = []
         for elem in elems:
             if elem!='' and re.match(r'([a-zA-Z]+)', elem) is None:
