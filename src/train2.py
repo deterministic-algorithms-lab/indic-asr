@@ -26,7 +26,6 @@ def save_checkpoint(model, name: str):
     print("saving model!")
     model_path = os.path.join(config.output_directory, config.model+'_'+name)
     model.save_pretrained(model_path)
-    wandb.save(model_path)
 
 def load_checkpoint(model, path: str):
     model.load_state_dict(torch.load(config.prev_checkpoint+"/pytorch_model.bin"))
@@ -94,7 +93,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
                 
                 model.train()
                 if min(val_losses)==val_losses[-1]:
-                    save_checkpoint(model, str(iters))
+                    save_checkpoint(model, str(epoch))
         
         print("Mean loss for epoch %d : "%epoch, (epoch_loss / num_train_batches))
 
@@ -175,7 +174,8 @@ if __name__ =='__main__':
     model = get_model(tokenizer)
     
     wandb.watch(model)
-    
+    config.output_directory = wandb.run.dir
+
     if(config.prev_checkpoint!=""):
         model=load_checkpoint(model,config.prev_checkpoint)
     
