@@ -143,11 +143,14 @@ def compute_metric(model, tokenizer, test_dataset):
         predicted_ids = torch.argmax(logits, dim=-1).cpu()
         transcriptions = tokenizer.batch_decode(predicted_ids)
         
+        reference = tokenizer.transliterate(d["text"]) if config.transliterate else d['text'].upper() 
+        
         if i==show_sample_no or i==0:
             print("Sample prediction: ", transcriptions[0])
-            print("Sample reference: ", d['text'].upper())
+            print("Sample reference: ", reference)
         
-        metric.add_batch(predictions=transcriptions, references=[d['text'].upper()])
+        metric.add_batch(predictions=transcriptions, 
+                         references=[reference])
     
     score = metric.compute()
     print("Evaluation metric: ", score)
