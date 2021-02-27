@@ -12,6 +12,7 @@ from model import get_model
 from tokenizer import Wav2Vec2Tok
 from datasets import load_dataset, load_metric
 import wandb
+import random
 
 def find_lengths(logits, pad_id: int) -> torch.FloatTensor:
     """
@@ -128,6 +129,8 @@ def compute_metric(model, tokenizer, test_dataset):
 
     pbar = tqdm(test_dataset, desc="Computing metric")
 
+    show_sample_no = random.randint(1, len(test_dataset)-1)
+
     for i, d in enumerate(pbar):
         
         input_values = tokenizer(d["speech"], return_tensors="pt", 
@@ -137,6 +140,10 @@ def compute_metric(model, tokenizer, test_dataset):
 
         predicted_ids = torch.argmax(logits, dim=-1).cpu()
         transcriptions = tokenizer.batch_decode(predicted_ids)
+        
+        if i==show_sample_no or i==0:
+            print("Sample prediction: ", transcriptions[0])
+            print("Sample reference: ", d['text'].lower())
         
         metric.add_batch(predictions=transcriptions, references=[d['text'].lower()])
     
