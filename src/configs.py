@@ -22,7 +22,7 @@ class config:
     train=True
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     max_audio_len=576000
-    freeze_for_epochs=0
+    freeze_for_epochs=5
 
 def get_all_params_dict(config):
     params = {}
