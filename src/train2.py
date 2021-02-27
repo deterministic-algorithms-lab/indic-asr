@@ -146,9 +146,9 @@ def compute_metric(model, tokenizer, test_dataset):
         
         if i==show_sample_no or i==0:
             print("Sample prediction: ", transcriptions[0])
-            print("Sample reference: ", d['text'].lower())
+            print("Sample reference: ", d['text'].upper())
         
-        metric.add_batch(predictions=transcriptions, references=[d['text'].lower()])
+        metric.add_batch(predictions=transcriptions, references=[d['text'].upper()])
     
     score = metric.compute()
     print("Evaluation metric: ", score)
@@ -156,7 +156,7 @@ def compute_metric(model, tokenizer, test_dataset):
 
 def collate_fn(batch, tokenizer):
     speech_lis = [elem["speech"] for elem in batch]
-    text_lis = [elem["text"].lower() for elem in batch]
+    text_lis = [elem["text"].upper() for elem in batch]
     
     input_values = tokenizer(speech_lis, return_tensors="pt", 
                                      padding='longest').input_values
