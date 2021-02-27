@@ -3,6 +3,9 @@ import torch.nn as nn
 from typing import List, Tuple
 from transformers import Wav2Vec2Tokenizer
 from configs import config
+import re
+from googletrans import Translator
+translator = Translator()
 
 class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     """
@@ -11,14 +14,29 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for i in range(2304, 2432) :
-            self._add_tokens(chr(i))
+        if not config.transliterate:
+            for i in range(2304, 2432) :
+                self._add_tokens(chr(i))
              
-        
+    def transliterate(self, text: str)-> str:
+        text = text.uppper()
+        elems = re.split(text, r'([a-zA-Z]+)')
+        text_elems = []
+        for elem in elems:
+            if elem!='' and re.match(r'([a-zA-Z]+)', elem) is None:
+                text_elems.append( translator.translate(elem, dest='en').extra_data['translation'][-1][-1].upper() )
+            else:
+                text_elems.append(elem.upper())
+
+        return ''.join(text_elems)
+
     def tokenize(self, text: str, **kwargs) -> List[int]:
         """
         Converts a single str into a sequence of token ids.
         """
+        if config.transliterate:
+            text = self.transliterate(text)
+
         text = ' '.join(text.split())
         text = text.replace(' ', self.word_delimiter_token)
         tokens = [self.bos_token_id]
