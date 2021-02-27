@@ -48,6 +48,8 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
 
     for epoch in range(config.EPOCHS):
         
+        config.cur_epoch = epoch
+
         loss=0
         epoch_loss = 0
         pbar=tqdm(train_dataloader, desc="Training epoch %d"%(epoch))
@@ -86,8 +88,10 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
                 
                 val_losses.append(eval_model(model, tokenizer, val_dataloader))
                 
+                wer_score = compute_metric(model, tokenizer, test_dataset)
+                
                 wandb.log({'validation_loss' : val_losses[-1],
-                            'wer_on_test_set': compute_metric(model, tokenizer, test_dataset)})
+                            'wer_on_test_set': wer_score})
                 
                 model.train()
                 if min(val_losses)==val_losses[-1]:
