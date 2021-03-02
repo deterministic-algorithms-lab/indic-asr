@@ -4,9 +4,8 @@ from typing import List, Tuple
 from transformers import Wav2Vec2Tokenizer
 from configs import config
 import re
-from googletrans import Translator
-translator = Translator()
-
+from indic_transliteration import sanscript
+from indic_transliteration.sanscript import transliterate
 class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     """
     Extending the base tokenizer of Wav2Vec2 for the purpose of encoding
@@ -17,17 +16,13 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         if not config.transliterate:
             for i in range(2304, 2432) :
                 self._add_tokens(chr(i))
-             
-    def transliterate(self, text: str)-> str:
-        elems = re.split('([ऀ-ঀ]+)', text)
-        text_elems = []
-        for elem in elems:
-            if elem.strip()!='' and re.match(r'([a-zA-Z]+)', elem) is None:
-                text_elems.append( translator.translate(elem, dest='en').extra_data['translation'][-1][-1].upper() )
-            else:
-                text_elems.append(elem.upper())
+        else:
+            for elem in ['̄', '̣', '̐', '́', '़', 'ॉ', '̃', '_', 'ऑ', '^', '…', '°', '̂', '~', '̱',  'ॅ', '`', 'ऍ', '−', '›']:
+                self._add_tokens(elem)
 
-        return ''.join(text_elems)
+    def transliterate(self, text: str)-> str:
+        transliteration = transliterate(data, sanscript.DEVANAGARI, sanscript.KOLKATA)
+        return unicodedata.normalize('NFD',transliteration)
 
     def tokenize(self, text: str, **kwargs) -> List[int]:
         """
