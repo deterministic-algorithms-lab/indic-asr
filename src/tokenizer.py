@@ -1,11 +1,14 @@
+from typing import List, Tuple
+import re
+import unicodedata
+
 import torch
 import torch.nn as nn
-from typing import List, Tuple
 from transformers import Wav2Vec2Tokenizer
-from configs import config
-import re
 from indic_transliteration import sanscript
 from indic_transliteration.sanscript import transliterate
+
+from configs import config
 class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     """
     Extending the base tokenizer of Wav2Vec2 for the purpose of encoding
