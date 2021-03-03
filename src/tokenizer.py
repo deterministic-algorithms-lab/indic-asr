@@ -34,7 +34,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
 
     def transliterate(self, text: str)-> str:
         transliteration = transliterate(data, sanscript.DEVANAGARI, sanscript.KOLKATA)
-        return self.normalize(transliteration)clean_text()
+        return self.normalize(transliteration)
 
     def tokenize(self, text: str, **kwargs) -> List[int]:
         """
