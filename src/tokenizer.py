@@ -33,7 +33,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         return ' '.join(text.split())
 
     def transliterate(self, text: str)-> str:
-        transliteration = transliterate(data, sanscript.DEVANAGARI, sanscript.KOLKATA)
+        transliteration = transliterate(text, sanscript.DEVANAGARI, sanscript.KOLKATA)
         return self.normalize(transliteration)
 
     def tokenize(self, text: str, **kwargs) -> List[int]:
