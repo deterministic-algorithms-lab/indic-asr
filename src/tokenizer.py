@@ -17,12 +17,24 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
             for i in range(2304, 2432) :
                 self._add_tokens(chr(i))
         else:
-            for elem in ['̄', '̣', '̐', '́', '़', 'ॉ', '̃', '_', 'ऑ', '^', '…', '°', '̂', '~', '̱',  'ॅ', '`', 'ऍ', '−', '›']:
+            for elem in ['̄', '̣', '̐', '́', '़', "'ॉ", '̃', '_', 'ऑ', '^', '…', '°', '̂', '̱',  'ॅ', 'ऍ', ':']:
                 self._add_tokens(elem)
+    
+    def normalize(self, text):
+        """
+        Replaces common symbols like @, $ with their phonetic forms.                  
+        Performs unicode NFD normalization, so that the base characters 
+        and diacritics are separated in the output.
+        """
+        text = unicodedata.normalize('NFD',text)
+        self.mappings = {'$': ' dollar ', '@' : ' at the rate ', '+': ' plus ', '<':' less than ', '>' : ' greater than ', '&' : ' and ', '%':' percent '}
+        for k,v in self.mappings.items():
+            text = text.replace(k, v)
+        return ' '.join(text.split())
 
     def transliterate(self, text: str)-> str:
         transliteration = transliterate(data, sanscript.DEVANAGARI, sanscript.KOLKATA)
-        return unicodedata.normalize('NFD',transliteration)
+        return self.normalize(transliteration)clean_text()
 
     def tokenize(self, text: str, **kwargs) -> List[int]:
         """
