@@ -143,8 +143,9 @@ def compute_metric(model, tokenizer, test_dataset):
 
         predicted_ids = torch.argmax(logits, dim=-1).cpu()
         transcriptions = tokenizer.batch_decode(predicted_ids)
+        transcriptions = tokenizer.revert_transliteration(transcriptions)
         
-        reference = (tokenizer.transliterate(d["text"]) if config.transliterate else d['text']).upper() 
+        reference = d['text'].upper() 
         
         if i==show_sample_no or i==0:
             print("Sample prediction: ", transcriptions[0])
@@ -171,7 +172,7 @@ def collate_fn(batch, tokenizer):
 if __name__ =='__main__':
     all_params_dict = get_all_params_dict(config)
     
-    wandb.init(project="wav2vec2", entity="interspeech-asr", config=all_params_dict)
+    wandb.init(project="wav2vec2.0", entity="interspeech-asr", config=all_params_dict)
 
     tokenizer = Wav2Vec2Tok.from_pretrained(config.model)
     

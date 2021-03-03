@@ -7,6 +7,7 @@ import torch.nn as nn
 from transformers import Wav2Vec2Tokenizer
 from indic_transliteration import sanscript
 from indic_transliteration.sanscript import transliterate
+import enchant
 
 from configs import config
 class Wav2Vec2Tok(Wav2Vec2Tokenizer):
@@ -20,6 +21,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
             for i in range(2304, 2432) :
                 self._add_tokens(chr(i))
         else:
+            self.en_dict = enchant.Dict("en_US")
             for elem in ['̄', '̣', '̐', '́', '़', "'ॉ", '̃', '_', 'ऑ', '^', '…', '°', '̂', '̱',  'ॅ', 'ऍ', ':']:
                 self._add_tokens(elem)
     
@@ -38,6 +40,20 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     def transliterate(self, text: str)-> str:
         transliteration = transliterate(text, sanscript.DEVANAGARI, sanscript.KOLKATA)
         return self.normalize(transliteration)
+    
+    def revert_transliteration(self, texts: List[str])->str:
+        back_transliterated_texts = []
+        for text in texts:
+            text = text.lower()
+            text = text.split()
+            reverted_text = []
+            for elem in text:
+                if not self.en_dict.check(elem):
+                    elem = transliterate(elem, sanscript.KOLKATA, sanscript.DEVANAGARI)
+                reverted_text.append(elem)
+            reverted_text = ' '.join(reverted_text) 
+            back_transliterated_texts.append(unicodedata.normalize('NFKC', reverted_text).upper())
+        return back_transliterated_texts
 
     def tokenize(self, text: str, **kwargs) -> List[int]:
         """
