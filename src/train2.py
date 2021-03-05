@@ -37,7 +37,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
     
     model.train()
 
-    optimizer = optim.Adam(model.parameters(), lr=config.LR)
+    optimizer = optim.Adam(model.parameters(), lr=config.fast_LR if config.freeze_for_epochs>0 else config.LR)
     ctc_loss = nn.CTCLoss(zero_infinity=True)
     
     iters=0
@@ -48,6 +48,8 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
     for epoch in range(config.EPOCHS):
         
         config.cur_epoch = epoch
+        if config.cur_epoch>config.freeze_for_epochs:
+            optimizer = optim.Adam(model.parameters(), lr=config.LR)
 
         loss=0
         epoch_loss = 0

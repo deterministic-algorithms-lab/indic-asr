@@ -7,6 +7,7 @@ class config:
     data_loading_script="/home/datasets/code_switch_asr"
 
     model="facebook/wav2vec2-base-960h"
+    fast_LR=1e-3                                                                    #To be used when initial weights are frozen
     LR=1e-6
     clip_grad_norm=1.0
     EPOCHS=0
