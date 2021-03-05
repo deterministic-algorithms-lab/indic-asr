@@ -8,6 +8,7 @@ class config:
 
     model="facebook/wav2vec2-base-960h"
     LR=1e-5
+    fast_LR=1e-3                                                                    #To be used when initial weights are frozen
     clip_grad_norm=1.0
     EPOCHS=50
     num_iters_checkpoint=2000
