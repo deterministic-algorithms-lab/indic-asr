@@ -39,7 +39,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
 
     def transliterate(self, text: str)-> str:
         transliteration = transliterate(text, sanscript.DEVANAGARI, sanscript.KOLKATA)
-        return self.normalize(transliteration)
+        return self.normalize(transliteration).upper()
     
     def revert_transliteration(self, texts: List[str])->str:
         back_transliterated_texts = []
