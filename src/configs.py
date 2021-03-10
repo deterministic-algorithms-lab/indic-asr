@@ -12,7 +12,7 @@ class config:
     clip_grad_norm=1.0
     EPOCHS=50
     num_iters_checkpoint=2000
-    prev_checkpoint="~/indic-asr/src/wandb/run-20210307_065525-2oo35ph0/files/facebook/wav2vec2-base-960h_15"
+    prev_checkpoint="~/indic-asr/src/model/"
     output_directory="./model/"
     
     os.makedirs(output_directory, exist_ok=True)
