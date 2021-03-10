@@ -12,7 +12,7 @@ class config:
     clip_grad_norm=1.0
     EPOCHS=50
     num_iters_checkpoint=2000
-    prev_checkpoint="~/indic-asr/src/model/"
+    prev_checkpoint="../model"
     output_directory="./model/"
     
     os.makedirs(output_directory, exist_ok=True)
