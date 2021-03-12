@@ -67,7 +67,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         tokens = [self.bos_token_id]
         
         for char in text:
-            tokens.append(self._convert_token_to_id(char))
+            tokens.append(self._convert_token_to_id_with_added_voc(char))
 
         tokens.append(self.eos_token_id)
         return tokens
