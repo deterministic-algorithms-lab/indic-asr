@@ -12,7 +12,7 @@ class config:
     clip_grad_norm=1.0
     EPOCHS=50
     num_iters_checkpoint=2000
-    prev_checkpoint="../model"
+    prev_checkpoint=""
     output_directory="./model/"
     
     os.makedirs(output_directory, exist_ok=True)
@@ -23,7 +23,7 @@ class config:
     train=True
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     max_audio_len=576000
-    freeze_for_epochs=10
+    freeze_for_epochs=1
     transliterate=True
 
 def get_all_params_dict(config):
