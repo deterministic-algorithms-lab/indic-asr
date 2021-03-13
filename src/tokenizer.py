@@ -24,7 +24,8 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
             self.en_dict = enchant.Dict("en_US")
             for elem in ['̄', '̣', '̐', '́', '़', "'ॉ", '̃', '_', 'ऑ', '^', '…', '°', '̂', '̱',  'ॅ', 'ऍ', ':']:
                 self._add_tokens(elem)
-    
+        self.mappings = {'$': ' dollar ', '@' : ' at the rate ', '+': ' plus ', '<':' less than ', '>' : ' greater than ', '&' : ' and ', '%':' percent '}
+
     def normalize(self, text):
         """
         Replaces common symbols like @, $ with their phonetic forms.                  
@@ -32,7 +33,6 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         and diacritics are separated in the output.
         """
         text = unicodedata.normalize('NFD',text)
-        self.mappings = {'$': ' dollar ', '@' : ' at the rate ', '+': ' plus ', '<':' less than ', '>' : ' greater than ', '&' : ' and ', '%':' percent '}
         for k,v in self.mappings.items():
             text = text.replace(k, v)
         return ' '.join(text.split())
@@ -49,6 +49,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
             reverted_text = []
             for elem in text:
                 if not self.en_dict.check(elem):
+                    elem = unicodedata.normalize('NFKC', elem)
                     elem = transliterate(elem, sanscript.KOLKATA, sanscript.DEVANAGARI)
                 reverted_text.append(elem)
             reverted_text = ' '.join(reverted_text) 
