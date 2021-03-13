@@ -20,7 +20,7 @@ class Wav2Vec2(Wav2Vec2ForCTC):
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if config.cur_epoch<=config.freeze_for_epochs:
+        if config.cur_epoch<config.freeze_for_epochs:
             
             with torch.no_grad():
                 outputs = self.wav2vec2(

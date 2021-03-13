@@ -48,7 +48,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
     for epoch in range(config.EPOCHS):
         
         config.cur_epoch = epoch
-        if config.cur_epoch>config.freeze_for_epochs:
+        if config.cur_epoch>=config.freeze_for_epochs:
             optimizer = optim.Adam(model.parameters(), lr=config.LR)
 
         loss=0
