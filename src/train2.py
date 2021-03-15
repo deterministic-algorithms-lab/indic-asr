@@ -59,19 +59,29 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
             pbar.set_postfix(loss =loss)
             
             iters+=1
+            input_values, labels1, label_lengths1,labels2, label_lengths2=None,None,None,None
+            if config.language_identification_asr:
+                input_values, labels1, label_lengths1,labels2, label_lengths2 = d
             
-            input_values, labels, label_lengths = d
             if input_values.shape[1]>config.max_audio_len:
                 print("skipping batch : ", i)
                 continue
             
             optimizer.zero_grad()
-
-            logits = model(input_values).logits
-
-            loss = ctc_loss(logits.transpose(0,1), labels, 
-                            find_lengths(logits, tokenizer.pad_token_id), label_lengths)
-
+            
+            logits1,logits2=None,None
+            logits = model(input_values)
+            
+            if config.language_identification_asr:
+                logits1,logits2=logits[0].logits,logits[1].logits
+            else:
+                logits1=logits.logits
+            loss = ctc_loss(logits1.transpose(0,1), labels1, 
+                            find_lengths(logits1, tokenizer.pad_token_id), label_lengths1)
+            
+            if config.language_identification_asr:
+                loss=loss+config.lang_param*ctc_loss(logits2.transpose(0,1), labels2, 
+                            find_lengths(logits2, tokenizer.pad_token_id), label_lengths2)
             # print("Training loss : ", loss)
 
             loss.backward()
@@ -115,11 +125,24 @@ def eval_model(model, tokenizer, val_dataloader):
     for i, d  in enumerate(pbar):
         pbar.set_postfix(loss = loss)
         
-        input_values, labels, label_lengths = d
+        input_values, labels1, label_lengths1,labels2, label_lengths2=None,None,None,None
+        if config.language_identification_asr:
+            input_values, labels1, label_lengths1,labels2, label_lengths2 = d
         
-        logits = model(input_values).logits
+        logits1,logits2=None,None
+        logits = model(input_values)
+
+        if config.language_identification_asr:
+            logits1,logits2=logits[0].logits,logits[1].logits
+        else:
+            logits1=logits.logits
         
-        loss = ctc_loss(logits.transpose(0,1), labels, find_lengths(logits, tokenizer.pad_token_id), label_lengths)
+        loss = ctc_loss(logits1.transpose(0,1), labels1, 
+                            find_lengths(logits1, tokenizer.pad_token_id), label_lengths1)
+            
+        if config.language_identification_asr:
+            loss=loss+config.lang_param*ctc_loss(logits2.transpose(0,1), labels2, 
+                        find_lengths(logits2, tokenizer.pad_token_id), label_lengths2)
         
         loss = loss.item()
         
@@ -140,13 +163,26 @@ def compute_metric(model, tokenizer, test_dataset):
         input_values = tokenizer(d["speech"], return_tensors="pt", 
                                      padding='longest').input_values.to(config.device)
 
-        logits = model(input_values).logits
+       
+        logits1,logits2=None,None
+        logits = model(input_values)
 
-        predicted_ids = torch.argmax(logits, dim=-1).cpu()
+        if config.language_identification_asr:
+            logits1,logits2=logits[0].logits,logits[1].logits
+        else:
+            logits1=logits.logits
+
+
+        predicted_ids = torch.argmax(logits1, dim=-1).cpu()
         transcriptions = tokenizer.batch_decode(predicted_ids)
-        transcriptions = tokenizer.revert_transliteration(transcriptions)
+        if config.language_identification_asr:
+            words_id= torch.argmax(logits2, dim=-1).cpu()
+            words_id= tokenizer.batch_decode(words_id)
+            transcriptions = tokenizer.revert_transliteration(transcriptions,words=words_id)
+        else:
+            transcriptions = tokenizer.revert_transliteration(transcriptions)
         
-        reference = d['text'].upper() 
+        reference = d['text'].upper()
         
         if i==show_sample_no or i==0:
             print("Sample prediction: ", transcriptions[0])
@@ -166,6 +202,11 @@ def collate_fn(batch, tokenizer):
     input_values = tokenizer(speech_lis, return_tensors="pt", 
                                      padding='longest').input_values
 
+    if config.language_identification_asr:
+        labels1, label_lengths1,labels2, label_lengths2 = tokenizer.batch_tokenize(text_lis)
+        return (input_values.to(config.device), labels1.to(config.device), label_lengths1.to(config.device),
+                labels2.to(config.device), label_lengths2.to(config.device))
+    
     labels, label_lengths = tokenizer.batch_tokenize(text_lis)
 
     return (input_values.to(config.device), labels.to(config.device), label_lengths.to(config.device))

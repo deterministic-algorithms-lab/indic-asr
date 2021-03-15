@@ -47,6 +47,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
             back_transliterated_texts = []
             for text,words in texts:
                 text = text.lower()
+                text=text.replace('<s>','').replace('</s>','')
                 text = text.split()
                 reverted_text = []
                 for elem,word in zip(text,words):
