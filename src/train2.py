@@ -152,6 +152,10 @@ def eval_model(model, tokenizer, val_dataloader):
     return (epoch_loss / num_valid_batches)
 
 def compute_metric(model, tokenizer, test_dataset):
+    
+    if config.language_identification:
+        return 0
+    
     metric = load_metric('wer')
 
     pbar = tqdm(test_dataset, desc="Computing metric")
@@ -178,7 +182,7 @@ def compute_metric(model, tokenizer, test_dataset):
         if config.language_identification_asr:
             words_id= torch.argmax(logits2, dim=-1).cpu()
             words_id= tokenizer.batch_decode(words_id)
-            transcriptions = tokenizer.revert_transliteration(transcriptions,words=words_id)
+            transcriptions = tokenizer.revert_transliteration(zip(transcriptions,words_id))
         else:
             transcriptions = tokenizer.revert_transliteration(transcriptions)
         
