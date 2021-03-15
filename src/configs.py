@@ -25,6 +25,8 @@ class config:
     max_audio_len=576000
     freeze_for_epochs=0
     transliterate=False
+    language_identification=False #only For language identification task
+    language_identification_asr=True # for both tasks simultaneously
 
 def get_all_params_dict(config):
     params = {}
