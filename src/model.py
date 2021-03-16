@@ -98,7 +98,7 @@ def get_model(tokenizer):
         model.lm_head = new_lm_head
     
     if config.language_identification or config.language_identification_asr:
-        model.lang_head=nn.Linear(model.lm_head.weight.shape[1],3)
+        model.lang_head=nn.Linear(model.lm_head.weight.shape[1],4)
     
     
     return model.to(config.device)

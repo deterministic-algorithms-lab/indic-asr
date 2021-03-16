@@ -77,15 +77,17 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         """
         Converts a single str into a sequence of token ids.
         """
+        text=text.upper()
         text = ' '.join(text.split())
         words_lang=[]
         if config.language_identification or config.language_identification_asr:
             for word in text.split():               
                 if(word.encode().isalpha()):
-                    words_lang.append(1)
+                    words_lang+=[3]+[1]
                 else:
-                    words_lang.append(2)
-                    
+                    words_lang+=[3]+[2]
+            words_lang+=[3]
+        
         if config.transliterate:
             text = self.transliterate(text)           
         

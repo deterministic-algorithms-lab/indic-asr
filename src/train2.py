@@ -59,10 +59,13 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
             pbar.set_postfix(loss =loss)
             
             iters+=1
-            input_values, labels1, label_lengths1,labels2, label_lengths2=None,None,None,None
+            input_values, labels1, label_lengths1,labels2, label_lengths2=None,None,None,None,None
             if config.language_identification_asr:
                 input_values, labels1, label_lengths1,labels2, label_lengths2 = d
             
+            else:
+                input_values, labels1, label_lengths1=d
+
             if input_values.shape[1]>config.max_audio_len:
                 print("skipping batch : ", i)
                 continue
@@ -100,8 +103,8 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
                 
                 wer_score = compute_metric(model, tokenizer, test_dataset)
                 
-                wandb.log({'validation_loss' : val_losses[-1],
-                            'wer_on_test_set': wer_score})
+                # wandb.log({'validation_loss' : val_losses[-1],
+                #             'wer_on_test_set': wer_score})
                 
                 model.train()
                 if min(val_losses)==val_losses[-1]:
@@ -125,10 +128,12 @@ def eval_model(model, tokenizer, val_dataloader):
     for i, d  in enumerate(pbar):
         pbar.set_postfix(loss = loss)
         
-        input_values, labels1, label_lengths1,labels2, label_lengths2=None,None,None,None
+        input_values, labels1, label_lengths1,labels2, label_lengths2=None,None,None,None,None
         if config.language_identification_asr:
             input_values, labels1, label_lengths1,labels2, label_lengths2 = d
-        
+        else:
+            input_values, labels1, label_lengths1=d
+
         logits1,logits2=None,None
         logits = model(input_values)
 
@@ -153,9 +158,6 @@ def eval_model(model, tokenizer, val_dataloader):
 
 def compute_metric(model, tokenizer, test_dataset):
     
-    if config.language_identification:
-        return 0
-    
     metric = load_metric('wer')
 
     pbar = tqdm(test_dataset, desc="Computing metric")
@@ -164,7 +166,8 @@ def compute_metric(model, tokenizer, test_dataset):
 
     for i, d in enumerate(pbar):
         
-        input_values = tokenizer(d["speech"], return_tensors="pt", 
+        sp,sr=sf.read(d["speech"])
+        input_values = tokenizer(sp[sr*d['start']:sr*d['end']], return_tensors="pt", 
                                      padding='longest').input_values.to(config.device)
 
        
@@ -179,16 +182,27 @@ def compute_metric(model, tokenizer, test_dataset):
 
         predicted_ids = torch.argmax(logits1, dim=-1).cpu()
         transcriptions = tokenizer.batch_decode(predicted_ids)
+
+
+        if config.language_identification:
+            print(predicted_ids)
+            print("Sample prediction: ", transcriptions[0].replace('<s>','1').replace('</s>','2'))
+            print("Sample reference: ", d['text'].upper())
+            return 
+       
+
         if config.language_identification_asr:
             words_id= torch.argmax(logits2, dim=-1).cpu()
             words_id= tokenizer.batch_decode(words_id)
             transcriptions = tokenizer.revert_transliteration(zip(transcriptions,words_id))
         else:
-            transcriptions = tokenizer.revert_transliteration(transcriptions)
+            if config.transliterate:
+               transcriptions = tokenizer.revert_transliteration(transcriptions)
         
         reference = d['text'].upper()
         
         if i==show_sample_no or i==0:
+            print(predicted_ids)
             print("Sample prediction: ", transcriptions[0])
             print("Sample reference: ", reference)
         
@@ -199,10 +213,67 @@ def compute_metric(model, tokenizer, test_dataset):
     print("Evaluation metric: ", score)
     return score
 
-def collate_fn(batch, tokenizer):
-    speech_lis = [elem["speech"] for elem in batch]
-    text_lis = [elem["text"].upper() for elem in batch]
+# def compute_metric(model, tokenizer, test_dataset):
+#     metric = load_metric('wer')
+
+#     pbar = tqdm(test_dataset, desc="Computing metric")
+
+#     # show_sample_no = random.randint(1, len(test_dataset)-1)
+#     show_sample_no=0
+#     data=[]
+#     for i, d in enumerate(pbar):
+#         sp,sr=sf.read(d["speech"])
+#         input_values = tokenizer(sp[sr*d['start']:sr*d['end']], return_tensors="pt", 
+#                                      padding='longest').input_values.to(config.device)
+
+        
+#         logits = torch.nn.functional.log_softmax(model(input_values).logits,dim=-1)
+#         # logits=model(input_values).logits
+
+#         predicted_ids = torch.argmax(logits, dim=-1).cpu()
+#         print(predicted_ids)
+#         transcriptions = tokenizer.batch_decode(predicted_ids)
+#         # transcriptions = tokenizer.revert_transliteration(transcriptions)
+        
+#         reference = d['text']
+        
+#         if i==show_sample_no or i==0:
+#             print("Sample prediction: ", transcriptions[0])
+#             print("Sample reference: ", reference)
+        
+#         data.append((transcriptions[0],reference))
+#     return data
+    #     metric.add_batch(predictions=transcriptions, 
+    #                      references=[reference])
     
+    # score = metric.compute()
+    # print("Evaluation metric: ", score)
+    # return score
+
+
+
+# def collate_fn(batch, tokenizer):
+#     speech_lis = [elem["speech"] for elem in batch]
+#     text_lis = [elem["text"].upper() for elem in batch]
+    
+#     input_values = tokenizer(speech_lis, return_tensors="pt", 
+#                                      padding='longest').input_values
+
+#     if config.language_identification_asr:
+#         labels1, label_lengths1,labels2, label_lengths2 = tokenizer.batch_tokenize(text_lis)
+#         return (input_values.to(config.device), labels1.to(config.device), label_lengths1.to(config.device),
+#                 labels2.to(config.device), label_lengths2.to(config.device))
+    
+#     labels, label_lengths = tokenizer.batch_tokenize(text_lis)
+
+#     return (input_values.to(config.device), labels.to(config.device), label_lengths.to(config.device))
+
+def collate_fn(batch, tokenizer):
+    speech_lis=[]
+    for elem in batch:
+        sp,sr=sf.read(elem["speech"])
+        speech_lis.append(sp[sr*elem['start']:sr*elem['end']])
+    text_lis=[elem['text'] for elem in batch]
     input_values = tokenizer(speech_lis, return_tensors="pt", 
                                      padding='longest').input_values
 
@@ -234,9 +305,9 @@ if __name__ =='__main__':
     
     print("running on ", config.device)
 
-    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[2%:]", writer_batch_size=1000)
-    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2%]", writer_batch_size=1000)
-    test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="test", writer_batch_size=1000)
+    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:200]", writer_batch_size=1000)
+    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:20]", writer_batch_size=1000)
+    test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2]", writer_batch_size=1000)
 
     if(config.train):
         train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
