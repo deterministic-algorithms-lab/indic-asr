@@ -305,9 +305,12 @@ if __name__ =='__main__':
     
     print("running on ", config.device)
 
-    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2]", writer_batch_size=1000)
-    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2]", writer_batch_size=1000)
-    test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2]", writer_batch_size=1000)
+    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2]", writer_batch_size=1000).filter(lambda x:x['end']-x['start']>0)
+    
+    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2]", writer_batch_size=1000).filter(lambda x:x['end']-x['start']>0)
+    
+    test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2]", writer_batch_size=1000).filter(lambda x:x['end']-x['start']>0)
+    
 
     if(config.train):
         train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
@@ -318,3 +321,4 @@ if __name__ =='__main__':
         print(compute_metric(model, tokenizer, test_dataset))
     
     print("TRAINING DONE!")
+s
