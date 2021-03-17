@@ -6,6 +6,9 @@ class config:
     data_dir="/home/krishnarajule3/ASR/data/Hindi-English/"
     data_loading_script="/home/creativityinczenyoga/datasets/code_switch-asr"
 
+    use_monolingual=False
+    monolingual_data_dir="/home/krishnarajule3/ASR/data/Hindi/"
+    
     model="facebook/wav2vec2-base-960h"
     LR=1e-6
     fast_LR=1e-3                                                                    #To be used when initial weights are frozen
