@@ -41,20 +41,27 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         transliteration = transliterate(text, sanscript.DEVANAGARI, sanscript.KOLKATA)
         return self.normalize(transliteration).upper()
     
-    def revert_transliteration(self, texts: Union[List[str],Tuple[List[str],List[int]]])->str:
+    def revert_transliteration(self, texts: Union[List[str],Tuple[List[str],List[str]]])->str:
         
         if config.language_identification_asr:
             back_transliterated_texts = []
             for text,words in texts:
+                
                 text = text.lower()
                 text=text.replace('<s>','').replace('</s>','')
+                words=words.replace('<s>','1').replace('</s>','2')
                 text = text.split()
+                words = [i for i in words]
+                
                 reverted_text = []
                 for elem,word in zip(text,words):
-                    if(word==2):
+                
+                    if(word=='2'):
                         elem = unicodedata.normalize('NFKC', elem)
                         elem = transliterate(elem, sanscript.KOLKATA, sanscript.DEVANAGARI)
+
                     reverted_text.append(elem)
+
                 reverted_text = ' '.join(reverted_text) 
                 back_transliterated_texts.append(unicodedata.normalize('NFKC', reverted_text).upper())
             return back_transliterated_texts
@@ -83,10 +90,10 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         if config.language_identification or config.language_identification_asr:
             for word in text.split():               
                 if(word.encode().isalpha()):
-                    words_lang+=[3]+[1]
+                    words_lang.append(1)
                 else:
-                    words_lang+=[3]+[2]
-            words_lang+=[3]
+                    words_lang.append(2)
+          
         
         if config.transliterate:
             text = self.transliterate(text)           

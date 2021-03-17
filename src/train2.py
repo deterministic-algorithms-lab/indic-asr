@@ -65,7 +65,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
             
             else:
                 input_values, labels1, label_lengths1=d
-
+            # print(labels1,labels2)
             if input_values.shape[1]>config.max_audio_len:
                 print("skipping batch : ", i)
                 continue
@@ -76,9 +76,9 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
             logits = model(input_values)
             
             if config.language_identification_asr:
-                logits1,logits2=logits[0].logits,logits[1].logits
+                logits1,logits2=F.log_softmax(logits[0].logits,dim=-1),F.log_softmax(logits[1].logits,dim=-1)
             else:
-                logits1=logits.logits
+                logits1=F.log_softmax(logits.logits,dim=-1)
             loss = ctc_loss(logits1.transpose(0,1), labels1, 
                             find_lengths(logits1, tokenizer.pad_token_id), label_lengths1)
             
@@ -103,8 +103,8 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
                 
                 wer_score = compute_metric(model, tokenizer, test_dataset)
                 
-                # wandb.log({'validation_loss' : val_losses[-1],
-                #             'wer_on_test_set': wer_score})
+                wandb.log({'validation_loss' : val_losses[-1],
+                            'wer_on_test_set': wer_score})
                 
                 model.train()
                 if min(val_losses)==val_losses[-1]:
@@ -138,9 +138,9 @@ def eval_model(model, tokenizer, val_dataloader):
         logits = model(input_values)
 
         if config.language_identification_asr:
-            logits1,logits2=logits[0].logits,logits[1].logits
+            logits1,logits2=F.log_softmax(logits[0].logits,dim=-1),F.log_softmax(logits[1].logits,dim=-1)
         else:
-            logits1=logits.logits
+            logits1=F.log_softmax(logits.logits,dim=-1)
         
         loss = ctc_loss(logits1.transpose(0,1), labels1, 
                             find_lengths(logits1, tokenizer.pad_token_id), label_lengths1)
@@ -175,9 +175,9 @@ def compute_metric(model, tokenizer, test_dataset):
         logits = model(input_values)
 
         if config.language_identification_asr:
-            logits1,logits2=logits[0].logits,logits[1].logits
+            logits1,logits2=F.log_softmax(logits[0].logits,dim=-1),F.log_softmax(logits[1].logits,dim=-1)
         else:
-            logits1=logits.logits
+            logits1=F.log_softmax(logits.logits,dim=-1)
 
 
         predicted_ids = torch.argmax(logits1, dim=-1).cpu()
@@ -185,7 +185,7 @@ def compute_metric(model, tokenizer, test_dataset):
 
 
         if config.language_identification:
-            print(predicted_ids)
+            
             print("Sample prediction: ", transcriptions[0].replace('<s>','1').replace('</s>','2'))
             print("Sample reference: ", d['text'].upper())
             return 
@@ -193,6 +193,7 @@ def compute_metric(model, tokenizer, test_dataset):
 
         if config.language_identification_asr:
             words_id= torch.argmax(logits2, dim=-1).cpu()
+            
             words_id= tokenizer.batch_decode(words_id)
             transcriptions = tokenizer.revert_transliteration(zip(transcriptions,words_id))
         else:
@@ -202,8 +203,7 @@ def compute_metric(model, tokenizer, test_dataset):
         reference = d['text'].upper()
         
         if i==show_sample_no or i==0:
-            print(predicted_ids)
-            print("Sample prediction: ", transcriptions[0])
+            print("Sample prediction: ", transcriptions)
             print("Sample reference: ", reference)
         
         metric.add_batch(predictions=transcriptions, 
@@ -305,8 +305,8 @@ if __name__ =='__main__':
     
     print("running on ", config.device)
 
-    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:200]", writer_batch_size=1000)
-    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:20]", writer_batch_size=1000)
+    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2]", writer_batch_size=1000)
+    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2]", writer_batch_size=1000)
     test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2]", writer_batch_size=1000)
 
     if(config.train):
