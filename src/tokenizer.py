@@ -44,8 +44,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     def remove_sos(self, texts: List[str]) -> List[str]:
         processed_texts = []
         for text in texts:
-            if text.startswith('<S>'):
-                processed_texts.append(text[3:])
+            processed_texts.append(text[3:] if text.startswith('<S>') else text)
         return processed_texts
     
     def revert_transliteration(self, texts: List[str])->str:
