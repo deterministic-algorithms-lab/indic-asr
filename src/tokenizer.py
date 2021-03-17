@@ -50,7 +50,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     
     def revert_transliteration(self, texts: List[str])->str:
         if not config.transliterate:
-            return [text.upper() for text in texts]
+            return self.remove_sos([text.upper() for text in texts])
 
         back_transliterated_texts = []
         for text in texts:
