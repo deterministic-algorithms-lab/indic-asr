@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import os
+import itertools
 import soundfile as sf
 
 import argparse
@@ -33,7 +34,7 @@ def load_checkpoint(model, path: str):
     return model
 
 
-def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset):
+def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset, mono_dataloader=None):
     
     model.train()
 
@@ -53,7 +54,11 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
 
         loss=0
         epoch_loss = 0
-        pbar=tqdm(train_dataloader, desc="Training epoch %d"%(epoch))
+        
+        if mono_dataloader is not None:
+            pbar=tqdm(itertools.chain(train_dataloader, mono_dataloader), desc="Training epoch %d"%(epoch))
+        else:
+            pbar=tqdm(train_dataloader, desc="Training epoch %d"%(epoch))
         
         for i, d in enumerate(pbar):
             pbar.set_postfix(loss =loss)
@@ -192,11 +197,17 @@ if __name__ =='__main__':
     train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[2%:]", writer_batch_size=1000)
     val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2%]", writer_batch_size=1000)
     test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="test", writer_batch_size=1000)
+    
+    if config.use_monolingual:
+        mono_dataset = load_dataset(config.data_loading_script, data_dir=config.monolingual_data_dir, split="train", writer_batch_size=1000)
+        mono_dataloader = torch.utils.data.DataLoader(dataset=mono_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
+    else:
+        mono_dataloader = None
 
     if(config.train):
         train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
         val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
-        train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset)
+        train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset, mono_dataloader)
     
     if(config.eval):
         print(compute_metric(model, tokenizer, test_dataset))
