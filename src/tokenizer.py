@@ -41,6 +41,13 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         transliteration = transliterate(text, sanscript.DEVANAGARI, sanscript.KOLKATA)
         return self.normalize(transliteration).upper()
     
+    def remove_sos(self, texts: List[str]) -> List[str]:
+        processed_texts = []
+        for text in texts:
+            if text.startswith('<S>'):
+                processed_texts.append(text[3:])
+        return processed_texts
+    
     def revert_transliteration(self, texts: List[str])->str:
         back_transliterated_texts = []
         for text in texts:
@@ -50,10 +57,14 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
             for elem in text:
                 if not self.en_dict.check(elem):
                     elem = unicodedata.normalize('NFKC', elem)
-                    elem = transliterate(elem, sanscript.KOLKATA, sanscript.DEVANAGARI)
-                reverted_text.append(elem)
+                    reverted_elem = transliterate(elem, sanscript.KOLKATA, sanscript.DEVANAGARI)
+                    if re.search('[a-zA-Z]',reverted_elem) is not None:
+                        reverted_elem = elem
+                reverted_text.append(reverted_elem)
             reverted_text = ' '.join(reverted_text) 
             back_transliterated_texts.append(unicodedata.normalize('NFKC', reverted_text).upper())
+        
+        back_transliterated_texts = self.remove_sos(back_transliterated_texts)
         return back_transliterated_texts
 
     def tokenize(self, text: str, **kwargs) -> List[int]:
