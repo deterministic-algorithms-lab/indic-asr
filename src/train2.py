@@ -143,7 +143,7 @@ def compute_metric(model, tokenizer, test_dataset):
     for i, d in enumerate(pbar):
         
         input_values = tokenizer(d["speech"], return_tensors="pt", 
-                                     padding='longest').input_values.to(config.device)
+                                 padding='longest').input_values.to(config.device)
 
         logits = model(input_values).logits
 
