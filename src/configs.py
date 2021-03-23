@@ -6,6 +6,9 @@ class config:
     data_dir="/content/"
     data_loading_script="/content/indic-asr/src/loader.py"
 
+    use_monolingual=False
+    monolingual_data_dir="/home/krishnarajule3/ASR/data/Hindi/"
+    
     model="facebook/wav2vec2-base-960h"
     fast_LR=1e-3                                                                    #To be used when initial weights are frozen
     LR=1e-5
