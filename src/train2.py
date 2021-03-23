@@ -44,7 +44,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
     iters=0
     num_train_batches = len(train_dataloader)
     loss=0
-    val_losses = []
+    wer_score = []
 
     for epoch in range(config.EPOCHS):
         
@@ -104,15 +104,15 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
             if(iters%config.num_iters_checkpoint==0):
                 model.eval()
                 
-                val_losses.append(eval_model(model, tokenizer, val_dataloader))
+                val_losses=eval_model(model, tokenizer, val_dataloader)
                 
-                wer_score = compute_metric(model, tokenizer, test_dataset)
+                wer_score.append(compute_metric(model, tokenizer, test_dataset))
                 
-                wandb.log({'validation_loss' : val_losses[-1],
-                            'wer_on_test_set': wer_score})
+                wandb.log({'validation_loss' : val_losses,
+                            'wer_on_test_set': wer_score[-1]})
                 
                 model.train()
-                if min(val_losses)==val_losses[-1]:
+                if min(wer_score)==wer_score[-1]:
                     save_checkpoint(model, str(epoch))
         
         print("Mean loss for epoch %d : "%epoch, (epoch_loss / num_train_batches))
