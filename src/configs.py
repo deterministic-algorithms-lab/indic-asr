@@ -40,7 +40,9 @@ class config:
     
     Language=Gujrati #select the language
     
-    
+    mono=True
+    mono_train_path="./"
+    mono_test_path="./"
 
 def get_all_params_dict(config):
     params = {}
