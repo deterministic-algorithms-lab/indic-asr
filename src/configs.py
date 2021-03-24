@@ -3,8 +3,8 @@ import torch
 
 class config:
     
-    data_dir="/content/"
-    data_loading_script="/content/indic-asr/src/loader.py"
+    data_dir="/home/krishnarajule3/ASR/data/Hindi-English/"
+    data_loading_script="./loader.py"
 
     use_monolingual=False
     monolingual_data_dir="/home/krishnarajule3/ASR/data/Hindi/"
@@ -13,14 +13,14 @@ class config:
     fast_LR=1e-3                                                                    #To be used when initial weights are frozen
     LR=1e-5
     clip_grad_norm=1.0
-    EPOCHS=4000
-    num_iters_checkpoint=100
-    prev_checkpoint=""
+    EPOCHS=100
+    num_iters_checkpoint=50000
+    prev_checkpoint="./model/wav2vec2-base-960h_17/"
     output_directory="./model/"
     cur_epoch=0
     os.makedirs(output_directory, exist_ok=True)
     
-    BATCH_SIZE=5
+    BATCH_SIZE=1
     SHUFFLE=False
     eval=True
     train=True
@@ -30,7 +30,7 @@ class config:
     transliterate=True
     language_identification=False #only For language identification task
     language_identification_asr=True # for both tasks simultaneously
-    lang_param=0.5
+    lang_param=0.25
 def get_all_params_dict(config):
     params = {}
     for k, v in config.__dict__.items():
