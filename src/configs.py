@@ -11,19 +11,19 @@ class config:
     
     model="facebook/wav2vec2-base-960h"
     fast_LR=1e-3                                                                    #To be used when initial weights are frozen
-    LR=1e-6
+    LR=1e-5
     clip_grad_norm=1.0
-    EPOCHS=0
-    num_iters_checkpoint=70
+    EPOCHS=100
+    num_iters_checkpoint=70000
     prev_checkpoint=""
     output_directory="./model/"
     
     os.makedirs(output_directory, exist_ok=True)
     
-    BATCH_SIZE=5
+    BATCH_SIZE=1
     SHUFFLE=False
-    eval=False
-    train=False
+    eval=True
+    train=True
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     max_audio_len=576000
     freeze_for_epochs=0
@@ -38,11 +38,11 @@ class config:
     Hindi=(2304,2431+1)
     Marathi=Hindi
     
-    Language=Gujrati #select the language
+    Language=Marathi #select the language
     
     mono=True
-    mono_train_path="./"
-    mono_test_path="./"
+    mono_train_path="/home/krishnarajule3/ASR/data/Marathi/train"
+    mono_test_path="/home/krishnarajule3/ASR/data/Marathi/test"
 
 def get_all_params_dict(config):
     params = {}
@@ -50,3 +50,4 @@ def get_all_params_dict(config):
         if not ( callable(v) or (k.startswith('__') and k.endswith('__'))):
             params[k]=v
     return params
+

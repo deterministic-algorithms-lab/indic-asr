@@ -16,17 +16,17 @@ import wandb
 import random
 
 
-class MonoData(Dataset):
+class MonoData(torch.utils.data.Dataset):
     def __init__(self,path):
         self.path=path
-        self.file=open(path+'/transcription.txt','r',encoding='UTF-8').read().split("\n")
+        self.file=open(path+'/transcription.txt','r',encoding='UTF-8').read().rstrip().split("\n")
     
     def __len__(self):
         return len(self.file)
     
     def __getitem__(self,index):
         audio,text=self.file[index].split(' ',1)
-        audio=self.path+'/Audios/'+audio
+        audio=self.path+'/audio/'+audio+'.wav'
         return audio,text
 
 def mono_collate_fn(batch, tokenizer):
@@ -172,7 +172,7 @@ def compute_metric(model, tokenizer, test_dataset):
                 input_values = tokenizer(d["speech"], return_tensors="pt", 
                                      padding='longest').input_values.to(config.device)
             else:
-                input_values = tokenizer(sf.read(d["speech"])[0], return_tensors="pt", 
+                input_values = tokenizer(sf.read(d[0])[0], return_tensors="pt", 
                                      padding='longest').input_values.to(config.device)
             
             logits = model(input_values).logits
@@ -180,8 +180,10 @@ def compute_metric(model, tokenizer, test_dataset):
             predicted_ids = torch.argmax(logits, dim=-1).cpu()
             transcriptions = tokenizer.batch_decode(predicted_ids)
             transcriptions = tokenizer.revert_transliteration(transcriptions)
-
-            reference = d['text'].upper() 
+            if not config.mono:
+                reference = d['text'].upper() 
+            else:
+                reference= d[1].upper()
 
             if i==show_sample_no or i==0:
                 print("Sample prediction: ", transcriptions[0])
