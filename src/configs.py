@@ -24,13 +24,18 @@ class config:
     SHUFFLE=False
     eval=True
     train=True
+    load_from_disk=False
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     max_audio_len=576000
     freeze_for_epochs=0
+    
     transliterate=True
-    language_identification=False #only For language identification task
-    language_identification_asr=True # for both tasks simultaneously
+
+    #Hyperparameters for adjusting signal from language identification and asr
     lang_param=0.25
+    asr_param=1.0
+
 def get_all_params_dict(config):
     params = {}
     for k, v in config.__dict__.items():

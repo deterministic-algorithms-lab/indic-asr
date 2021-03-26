@@ -48,59 +48,37 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
             processed_texts.append(text[3:] if text.startswith('<S>') else text)
         return processed_texts
     
-    def revert_transliteration(self, texts: Union[List[str],Tuple[List[str],List[str]]])->str:
+    def back_transliterate_word(self, word: str, predicted_lang_id=None):
+        word = word.lower()
+        if not self.en_dict.check(word) and predicted_lang_id!=1:
+            word = unicodedata.normalize('NFKC', word)
+            word = transliterate(word, sanscript.KOLKATA, sanscript.DEVANAGARI)
+        return unicodedata.normalize('NFKC', word).upper()
         
-        if config.language_identification_asr:
-            back_transliterated_texts = []
-            for text,words in texts:
-                
-                text = text.lower()
-                text=text.replace('<s>','').replace('</s>','')
-                words=words.replace('<s>','1').replace('</s>','2')
-                text = text.split()
-                words = [i for i in words]
-                
-                reverted_text = []
-                for elem,word in zip(text,words):
-                
-                    if(word=='2'):
-                        elem = unicodedata.normalize('NFKC', elem)
-                        elem = transliterate(elem, sanscript.KOLKATA, sanscript.DEVANAGARI)
-
-                    reverted_text.append(elem)
-
-                reverted_text = ' '.join(reverted_text) 
-                back_transliterated_texts.append(unicodedata.normalize('NFKC', reverted_text).upper())
-            return back_transliterated_texts
+    def revert_transliteration(self, texts: List[str], lang_ids: List[List[int]])->str:
         
         back_transliterated_texts = []
-        for text in texts:
-            text = text.lower()
-            text = text.split()
-            reverted_text = []
-            for elem in text:
-                if not self.en_dict.check(elem):
-                    elem = unicodedata.normalize('NFKC', elem)
-                    elem = transliterate(elem, sanscript.KOLKATA, sanscript.DEVANAGARI)
-                reverted_text.append(elem)
-            reverted_text = ' '.join(reverted_text) 
-            back_transliterated_texts.append(unicodedata.normalize('NFKC', reverted_text).upper())
-        return back_transliterated_texts
 
+        for (text, langs) in zip(texts, lang_ids):
+            words = text.split()
+            if len(langs)<len(words):
+                langs = langs + [None]*(len(words)-len(langs))
+            back_transliterated = [self.back_transliterate_word(word, lang) for word, lang in zip(words, langs)]
+            back_transliterated_texts.append(' '.join(back_transliterated))
+        
+        return back_transliterated_texts
+    
+    def get_lang_ids(self, text: str) -> List[int]:
+        return [1 if word.encode().isalpha() else 2 for word in text.split()]
+    
     def tokenize(self, text: str, **kwargs) -> Union[Tuple[List[int],List[int]],List[int]]:
         """
         Converts a single str into a sequence of token ids.
         """
         text=text.upper()
         text = ' '.join(text.split())
-        words_lang=[]
-        if config.language_identification or config.language_identification_asr:
-            for word in text.split():               
-                if(word.encode().isalpha()):
-                    words_lang.append(1)
-                else:
-                    words_lang.append(2)
-          
+        
+        lang_ids = self.get_lang_ids(text)
         
         if config.transliterate:
             text = self.transliterate(text)           
@@ -113,49 +91,28 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
 
         tokens.append(self.eos_token_id)
         
-        if config.language_identification:
-            return words_lang
-        
-        if config.language_identification_asr:
-            return tokens,words_lang
-        
-        return tokens
+        return tokens, lang_ids
     
-    def pad_batch_sentences(self, sentences_word: Union[List[List[int]],List[Tuple[List[int],List[int]]]], max_length: int=None) -> Union[Tuple[torch.FloatTensor, torch.IntTensor],Tuple[torch.FloatTensor, torch.IntTensor,torch.FloatTensor, torch.IntTensor]]:
+    def pad_batch_sentences(self, sentences_word: Union[List[List[int]],List[Tuple[List[int],List[int]]]], max_length: int=-1) -> Union[Tuple[torch.FloatTensor, torch.IntTensor],Tuple[torch.FloatTensor, torch.IntTensor,torch.FloatTensor, torch.IntTensor]]:
         """
         Pads all list of token ids, in a batch to the maximum length.
         Truncates all sequences to max_length.
         """
         
-        if not config.language_identification_asr:
-            sentences = [sentence[:max_length] for sentence in sentences_word]
-            lengths = [len(sentence) for sentence in sentences_word]
-            max_len = max(lengths)
-
-            for i, sentence in enumerate(sentences):
-                sentences[i] = sentence + [self.pad_token_id]*(max_len-len(sentence))        
-
-            return torch.tensor(sentences, dtype=torch.float32), torch.tensor(lengths)
-        
-        sentences = [sentence[0][:max_length] for sentence in sentences_word]
-        lengths = [len(sentence[0]) for sentence in sentences_word]
+        sentences = [sentence[:max_length] for sentence in sentences]
+        lengths = [len(sentence) for sentence in sentences]
         max_len = max(lengths)
-
-        words = [sentence[1][:max_length] for sentence in sentences_word]
-        w_lengths = [len(sentence[1]) for sentence in sentences_word]
-        w_max_len = max(w_lengths)
-
-        for i, (sentence,word) in enumerate(zip(sentences,words)):
-                sentences[i] = sentence + [self.pad_token_id]*(max_len-len(sentence))  
-                words[i]=word+ [self.pad_token_id]*(w_max_len-len(word))
         
-        return torch.tensor(sentences, dtype=torch.float32), torch.tensor(lengths),torch.tensor(words, dtype=torch.float32), torch.tensor(w_lengths)
-    
+        for i, sentence in enumerate(sentences):
+            sentences[i] = sentence + [self.pad_token_id]*(max_len-len(sentence))
+        
+        return torch.tensor(sentences, dtype=torch.float32), torch.tensor(lengths)
+      
     def batch_tokenize(self, texts: List[str], **kwargs) -> Union[Tuple[torch.FloatTensor, torch.IntTensor],Tuple[torch.FloatTensor, torch.IntTensor,torch.FloatTensor, torch.IntTensor]]:
         """
         Tokenizes and batches together a list of texts
         """
-        tokenized_sentences = []
-        for sentence in texts:
-            tokenized_sentences.append(self.tokenize(sentence))
-        return self.pad_batch_sentences(tokenized_sentences)
+        tokenizer_output = [self.tokenize(sentence) for sentence in text]
+        padded_token_ids, token_seq_lengths = self.pad_batch_sentences([elem[0] for elem in tokenizer_output])
+        padded_lang_ids, lang_labels_lengths = self.pad_batch_sentences([elem[1] for elem in tokenizer_output])
+        return padded_token_ids, token_seq_lengths, padded_lang_ids, lang_labels_lengths

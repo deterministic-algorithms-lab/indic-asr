@@ -11,7 +11,7 @@ from tqdm import tqdm
 from configs import config, get_all_params_dict
 from model import get_model
 from tokenizer import Wav2Vec2Tok
-from datasets import load_dataset, load_metric
+from datasets import load_dataset, load_metric, load_from_disk
 import wandb
 import random
 
@@ -33,8 +33,27 @@ def load_checkpoint(model, path: str):
     print("model loaded!")
     return model
 
+def get_datasets():
+    """Returns train, valid, and test and mono datasets"""
 
-def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset, mono_dataloader=None):
+    if config.load_from_disk:
+        ds = load_from_disk(config.data_dir)
+        data_dic = ds['train'].train_test_split(test_size=0.02)
+        mono_dataset = load_from_disk(config.monolingual_data_dir) if config.use_monolingual else None
+        return data_dic['train'], data_dic['test'], ds['test'], mono_dataset
+    
+    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[2%:]", writer_batch_size=1000)
+    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2%]", writer_batch_size=1000)
+    test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="test", writer_batch_size=1000)
+    
+    if config.use_monolingual:
+        mono_dataset = load_dataset(config.data_loading_script, data_dir=config.monolingual_data_dir, split="train", writer_batch_size=1000)
+    else:
+        mono_dataset = None
+    
+    return train_dataset, val_dataset, test_dataset, mono_dataset
+
+def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloader, mono_dataloader=None):
     
     model.train()
 
@@ -52,7 +71,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
         if config.cur_epoch>=config.freeze_for_epochs:
             optimizer = optim.Adam(model.parameters(), lr=config.LR)
 
-        loss=0
+        loss = 0 
         epoch_loss = 0
         
         if mono_dataloader is not None:
@@ -61,36 +80,30 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
             pbar=tqdm(train_dataloader, desc="Training epoch %d"%(epoch))
         
         for i, d in enumerate(pbar):
-            pbar.set_postfix(loss =loss)
+            pbar.set_postfix(loss=loss)
             
             iters+=1
-            input_values, labels1, label_lengths1,labels2, label_lengths2=None,None,None,None,None
-            if config.language_identification_asr:
-                input_values, labels1, label_lengths1,labels2, label_lengths2 = d
             
-            else:
-                input_values, labels1, label_lengths1=d
-            # print(labels1,labels2)
+            input_values, token_ids, token_seq_lengths, lang_ids, lang_labels_lengths = d
+            
             if input_values.shape[1]>config.max_audio_len:
                 print("skipping batch : ", i)
                 continue
             
             optimizer.zero_grad()
             
-            logits1,logits2=None,None
             logits = model(input_values)
+            token_logits, lang_logits = logits[...,:-4], logits[..., -4:]
             
-            if config.language_identification_asr:
-                logits1,logits2=F.log_softmax(logits[0].logits,dim=-1),F.log_softmax(logits[1].logits,dim=-1)
-            else:
-                logits1=F.log_softmax(logits.logits,dim=-1)
-            loss = ctc_loss(logits1.transpose(0,1), labels1, 
-                            find_lengths(logits1, tokenizer.pad_token_id), label_lengths1)
+            asr_loss = ctc_loss(token_logits.transpose(0,1), token_ids, 
+                                find_lengths(token_logits, tokenizer.pad_token_id), token_seq_lengths)
             
-            if config.language_identification_asr:
-                loss=loss+config.lang_param*ctc_loss(logits2.transpose(0,1), labels2, 
-                            find_lengths(logits2, tokenizer.pad_token_id), label_lengths2)
-            # print("Training loss : ", loss)
+            lang_class_loss = ctc_loss(lang_logits.transpose(0,1), lang_ids, 
+                                       find_lengths(lang_logits, tokenizer.pad_token_id), lang_labels_lengths)
+            
+            loss = config.asr_param*asr_loss + config.lang_param*lang_class_loss
+            
+            #print("Training loss : ", loss)
 
             loss.backward()
             
@@ -104,12 +117,12 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
             if(iters%config.num_iters_checkpoint==0):
                 model.eval()
                 
-                val_losses=eval_model(model, tokenizer, val_dataloader)
+                val_losses = eval_model(model, tokenizer, val_dataloader)
                 
-                wer_score.append(compute_metric(model, tokenizer, test_dataset))
+                wer_score.append(compute_metric(model, tokenizer, test_dataloader))
                 
                 wandb.log({'validation_loss' : val_losses,
-                            'wer_on_test_set': wer_score[-1]})
+                           'wer_on_test_set': wer_score[-1]})
                 
                 model.train()
                 if min(wer_score)==wer_score[-1]:
@@ -133,27 +146,24 @@ def eval_model(model, tokenizer, val_dataloader):
     for i, d  in enumerate(pbar):
         pbar.set_postfix(loss = loss)
         
-        input_values, labels1, label_lengths1,labels2, label_lengths2=None,None,None,None,None
-        if config.language_identification_asr:
-            input_values, labels1, label_lengths1,labels2, label_lengths2 = d
-        else:
-            input_values, labels1, label_lengths1=d
-
-        logits1,logits2=None,None
-        logits = model(input_values)
-
-        if config.language_identification_asr:
-            logits1,logits2=F.log_softmax(logits[0].logits,dim=-1),F.log_softmax(logits[1].logits,dim=-1)
-        else:
-            logits1=F.log_softmax(logits.logits,dim=-1)
-        
-        loss = ctc_loss(logits1.transpose(0,1), labels1, 
-                            find_lengths(logits1, tokenizer.pad_token_id), label_lengths1)
+        input_values, token_ids, token_seq_lengths, lang_ids, lang_labels_lengths = d
             
-        if config.language_identification_asr:
-            loss=loss+config.lang_param*ctc_loss(logits2.transpose(0,1), labels2, 
-                        find_lengths(logits2, tokenizer.pad_token_id), label_lengths2)
-        
+        if input_values.shape[1]>config.max_audio_len:
+            print("skipping batch : ", i)
+            continue
+            
+            
+        logits = model(input_values)
+        token_logits, lang_logits = logits[...,:-4], logits[..., -4:]
+            
+        asr_loss = ctc_loss(token_logits.transpose(0,1), token_ids, 
+                            find_lengths(token_logits, tokenizer.pad_token_id), token_seq_lengths)
+            
+        lang_class_loss = ctc_loss(lang_logits.transpose(0,1), lang_ids, 
+                                   find_lengths(lang_logits, tokenizer.pad_token_id), lang_labels_lengths)
+            
+        loss = config.asr_param*asr_loss + config.lang_param*lang_class_loss
+            
         loss = loss.item()
         
         epoch_loss += loss
@@ -161,134 +171,64 @@ def eval_model(model, tokenizer, val_dataloader):
     print("Mean validation loss:", (epoch_loss / num_valid_batches))
     return (epoch_loss / num_valid_batches)
 
-def compute_metric(model, tokenizer, test_dataset):
+def compute_metric(model, tokenizer, test_dataloader):
     
-    metric = load_metric('wer')
+    wer_metric = load_metric('wer')
+    acc_metric = load_metric('accuracy')
 
-    pbar = tqdm(test_dataset, desc="Computing metric")
+    pbar = tqdm(test_dataloader, desc="Computing metric")
 
     show_sample_no = random.randint(1, len(test_dataset)-1)
 
     for i, d in enumerate(pbar):
         
-        sp,sr=sf.read(d["speech"])
-        input_values = tokenizer(sp[sr*d['start']:sr*d['end']], return_tensors="pt", 
-                                     padding='longest').input_values.to(config.device)
-        
-        logits1,logits2=None,None
+        input_values, token_ids, token_seq_lengths, lang_ids, lang_labels_lengths = d
+        lang_ids = [ids[:length].tolist() for (length, ids) in zip(lang_label_lengths, lang_ids)]
+
+        if input_values.shape[1]>config.max_audio_len:
+            print("skipping batch : ", i)
+            continue
+
         logits = model(input_values)
+        token_logits, lang_logits = logits[...,:-4], logits[..., -4:]
 
-        if config.language_identification_asr:
-            logits1,logits2=F.log_softmax(logits[0].logits,dim=-1),F.log_softmax(logits[1].logits,dim=-1)
-        else:
-            logits1=F.log_softmax(logits.logits,dim=-1)
-
-
-        predicted_ids = torch.argmax(logits1, dim=-1).cpu()
+        predicted_ids, predicted_langs = torch.argmax(token_logits, dim=-1).cpu(), torch.argmax(lang_logits, dim=-1).cpu()
         transcriptions = tokenizer.batch_decode(predicted_ids)
+        predicted_langs = [ids[:length].tolist() for (length, ids) in zip(lang_label_lengths, predicted_langs)]
 
-
-        if config.language_identification:
-            
-            print("Sample prediction: ", transcriptions[0].replace('<s>','1').replace('</s>','2'))
-            print("Sample reference: ", d['text'].upper())
-            return 
-       
-
-        if config.language_identification_asr:
-            words_id= torch.argmax(logits2, dim=-1).cpu()
-            
-            words_id= tokenizer.batch_decode(words_id)
-            transcriptions = tokenizer.revert_transliteration(zip(transcriptions,words_id))
-        else:
-            if config.transliterate:
-               transcriptions = tokenizer.revert_transliteration(transcriptions)
-        
-        reference = d['text'].upper()
+        if config.transliterate:
+            transcriptions = tokenizer.revert_transliteration(transcriptions, predicted_langs)
+    
+        references = tokenizer.batch_decode(token_ids)
         
         if i==show_sample_no or i==0:
             print("Sample prediction: ", transcriptions)
-            print("Sample reference: ", reference)
+            print("Sample reference: ", references)
         
-        metric.add_batch(predictions=transcriptions, 
-                         references=[reference])
+        wer_metric.add_batch(predictions=transcriptions, 
+                             references=references)
+        
+        acc_metric.add_batch(predictions=predicted_langs,
+                             references=lang_ids)
     
-    score = metric.compute()
-    print("Evaluation metric: ", score)
-    return score
+    wer_score = wer_metric.compute()
+    acc_score = acc_metric.comput()
+    print("WER Evaluation metric: ", wer_score)
+    print("Language prediction accuracy: ", acc_score)
+    return config.asr_param*wer_score + config.lang_param*acc_score
 
-# def compute_metric(model, tokenizer, test_dataset):
-#     metric = load_metric('wer')
-
-#     pbar = tqdm(test_dataset, desc="Computing metric")
-
-#     # show_sample_no = random.randint(1, len(test_dataset)-1)
-#     show_sample_no=0
-#     data=[]
-#     for i, d in enumerate(pbar):
-#         sp,sr=sf.read(d["speech"])
-#         input_values = tokenizer(sp[sr*d['start']:sr*d['end']], return_tensors="pt", 
-#                                      padding='longest').input_values.to(config.device)
-
-        
-#         logits = torch.nn.functional.log_softmax(model(input_values).logits,dim=-1)
-#         # logits=model(input_values).logits
-
-#         predicted_ids = torch.argmax(logits, dim=-1).cpu()
-#         print(predicted_ids)
-#         transcriptions = tokenizer.batch_decode(predicted_ids)
-#         # transcriptions = tokenizer.revert_transliteration(transcriptions)
-        
-#         reference = d['text']
-        
-#         if i==show_sample_no or i==0:
-#             print("Sample prediction: ", transcriptions[0])
-#             print("Sample reference: ", reference)
-        
-#         data.append((transcriptions[0],reference))
-#     return data
-    #     metric.add_batch(predictions=transcriptions, 
-    #                      references=[reference])
-    
-    # score = metric.compute()
-    # print("Evaluation metric: ", score)
-    # return score
-
-
-
-# def collate_fn(batch, tokenizer):
-#     speech_lis = [elem["speech"] for elem in batch]
-#     text_lis = [elem["text"].upper() for elem in batch]
-    
-#     input_values = tokenizer(speech_lis, return_tensors="pt", 
-#                                      padding='longest').input_values
-
-#     if config.language_identification_asr:
-#         labels1, label_lengths1,labels2, label_lengths2 = tokenizer.batch_tokenize(text_lis)
-#         return (input_values.to(config.device), labels1.to(config.device), label_lengths1.to(config.device),
-#                 labels2.to(config.device), label_lengths2.to(config.device))
-    
-#     labels, label_lengths = tokenizer.batch_tokenize(text_lis)
-
-#     return (input_values.to(config.device), labels.to(config.device), label_lengths.to(config.device))
 
 def collate_fn(batch, tokenizer):
-    speech_lis=[]
-    for elem in batch:
-        sp,sr=sf.read(elem["speech"])
-        speech_lis.append(sp[sr*elem['start']:sr*elem['end']])
-    text_lis=[elem['text'] for elem in batch]
+    speech_lis = [elem["speech"] for elem in batch]
+    text_lis = [elem["text"].upper() for elem in batch]
+
     input_values = tokenizer(speech_lis, return_tensors="pt", 
-                                     padding='longest').input_values
+                             padding='longest').input_values
 
-    if config.language_identification_asr:
-        labels1, label_lengths1,labels2, label_lengths2 = tokenizer.batch_tokenize(text_lis)
-        return (input_values.to(config.device), labels1.to(config.device), label_lengths1.to(config.device),
-                labels2.to(config.device), label_lengths2.to(config.device))
+    token_ids, token_seq_lengths, lang_ids, lang_labels_lengths = tokenizer.batch_tokenize(text_lis)
     
-    labels, label_lengths = tokenizer.batch_tokenize(text_lis)
-
-    return (input_values.to(config.device), labels.to(config.device), label_lengths.to(config.device))
+    return (input_values.to(config.device), token_ids.to(config.device), token_seq_lengths.to(config.device),
+            lang_ids.to(config.device), lang_labels_lengths.to(config.device))
 
 if __name__ =='__main__':
     all_params_dict = get_all_params_dict(config)
@@ -309,22 +249,18 @@ if __name__ =='__main__':
     
     print("running on ", config.device)
 
-    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[2%:]", writer_batch_size=1000).filter(lambda x:x['end']-x['start']>0)
-    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2%]", writer_batch_size=1000).filter(lambda x:x['end']-x['start']>0)
-    test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="test", writer_batch_size=1000).filter(lambda x:x['end']-x['start']>0)
-    
-    if config.use_monolingual:
-        mono_dataset = load_dataset(config.data_loading_script, data_dir=config.monolingual_data_dir, split="train", writer_batch_size=1000).filter(lambda x:x['end']-x['start']>0)
-        mono_dataloader = torch.utils.data.DataLoader(dataset=mono_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
-    else:
-        mono_dataloader = None
+    train_dataset, val_dataset, train_dataset, mono_dataset = get_datasets()
 
     if(config.train):
+        mono_dataloader = torch.utils.data.DataLoader(dataset=mono_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params) if mono_dataset is not None else None
+        
         train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
         val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
-        train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset, mono_dataloader)
+        test_dataloader = torch.utils.data.DataLoader(dataset=test_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
+
+        train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloader, mono_dataloader)
     
     if(config.eval):
-        print(compute_metric(model, tokenizer, test_dataset))
+        print(compute_metric(model, tokenizer, test_dataloader))
     
     print("TRAINING DONE!")
