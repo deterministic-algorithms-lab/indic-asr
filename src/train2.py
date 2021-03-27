@@ -93,7 +93,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataloa
             optimizer.zero_grad()
             
             logits = model(input_values)
-            token_logits, lang_logits = logits[...,:-4], logits[..., -4:]
+            token_logits, lang_logits = logits[...,:-3], logits[..., -3:]
             
             asr_loss = ctc_loss(token_logits.transpose(0,1), token_ids, 
                                 find_lengths(token_logits, tokenizer.pad_token_id), token_seq_lengths)
@@ -154,7 +154,7 @@ def eval_model(model, tokenizer, val_dataloader):
             
             
         logits = model(input_values)
-        token_logits, lang_logits = logits[...,:-4], logits[..., -4:]
+        token_logits, lang_logits = logits[...,:-3], logits[..., -3:]
             
         asr_loss = ctc_loss(token_logits.transpose(0,1), token_ids, 
                             find_lengths(token_logits, tokenizer.pad_token_id), token_seq_lengths)
@@ -190,11 +190,11 @@ def compute_metric(model, tokenizer, test_dataloader):
             continue
 
         logits = model(input_values)
-        token_logits, lang_logits = logits[...,:-4], logits[..., -4:]
+        token_logits, lang_logits = logits[...,:-3], logits[..., -3:]
 
         predicted_ids, predicted_langs = torch.argmax(token_logits, dim=-1).cpu(), torch.argmax(lang_logits, dim=-1).cpu()
-        transcriptions = tokenizer.batch_decode(predicted_ids)
-        predicted_langs = [ids[:length].tolist() for (length, ids) in zip(lang_label_lengths, predicted_langs)]
+        transcriptions, predicted_langs = tokenizer.batch_decode(predicted_ids), tokenizer.batch_decode(predicted_langs)
+        predicted_langs = [[1 if elem=='s' or elem=='<s' else 2 for elem in predicted.split('><')] for predicted in predicted_langs]
 
         if config.transliterate:
             transcriptions = tokenizer.revert_transliteration(transcriptions, predicted_langs)
