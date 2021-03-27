@@ -8,6 +8,7 @@ from transformers import Wav2Vec2Tokenizer
 from indic_transliteration import sanscript
 from indic_transliteration.sanscript import transliterate
 import enchant
+from nltk.corpus import indian
 
 from configs import config
 class Wav2Vec2Tok(Wav2Vec2Tokenizer):
@@ -25,7 +26,8 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
             for elem in ['̄', '̣', '̐', '́', '़', "'ॉ", '̃', '_', 'ऑ', '^', '…', '°', '̂', '̱',  'ॅ', 'ऍ', ':']:
                 self._add_tokens(elem)
         self.mappings = {'$': ' dollar ', '@' : ' at the rate ', '+': ' plus ', '<':' less than ', '>' : ' greater than ', '&' : ' and ', '%':' percent '}
-
+        self.hindi_words = [unicodedata.normalize('NFKC', word) for word in nltk.corpus.indian.words('hindi.pos')]
+        
     def normalize(self, text):
         """
         Replaces common symbols like @, $ with their phonetic forms.                  
@@ -53,6 +55,11 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         if not self.en_dict.check(word) and predicted_lang_id!=1:
             word = unicodedata.normalize('NFKC', word)
             word = transliterate(word, sanscript.KOLKATA, sanscript.DEVANAGARI)
+        else:
+            transliterated_word = unicodedata.normalize('NFKC', word)
+            transliterated_word = transliterate(transliterated_word, sanscript.KOLKATA, sanscript.DEVANAGARI)
+            if unicodedata.normalize('NFKC', transliterated_word) in self.hindi_words:
+                word = transliterated_word
         return unicodedata.normalize('NFKC', word).upper()
         
     def revert_transliteration(self, texts: List[str], lang_ids: List[List[int]])->str:
