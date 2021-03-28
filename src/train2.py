@@ -163,7 +163,7 @@ def compute_metric(model, tokenizer, test_dataset):
     metric = load_metric('wer')
 
     pbar = tqdm(test_dataset, desc="Computing metric")
-
+    score=[]
     show_sample_no = random.randint(1, len(test_dataset)-1)
     with torch.no_grad():
         for i, d in enumerate(pbar):
@@ -192,7 +192,8 @@ def compute_metric(model, tokenizer, test_dataset):
             metric.add_batch(predictions=transcriptions, 
                              references=[reference])
     
-    score = metric.compute()
+            score.append(metric.compute())
+    score=sum(score)/len(score)
     print("Evaluation metric: ", score)
     return score
 
@@ -240,6 +241,8 @@ if __name__ =='__main__':
         mono_dataloader = torch.utils.data.DataLoader(dataset=mono_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
     else:
         mono_dataloader = None
+
+    print(compute_metric(model, tokenizer, test_dataset))
 
     if(config.train):
         if not config.mono:
