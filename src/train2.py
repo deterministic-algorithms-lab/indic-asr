@@ -29,7 +29,7 @@ def save_checkpoint(model, name: str):
     model.save_pretrained(model_path)
 
 def load_checkpoint(model, path: str):
-    model.load_state_dict(torch.load(config.prev_checkpoint+"/pytorch_model.bin"))
+    model.load_state_dict(torch.load(config.prev_checkpoint+"/pytorch_model.bin"),strict=False)
     print("model loaded!")
     return model
 

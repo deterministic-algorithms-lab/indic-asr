@@ -3,8 +3,8 @@ import torch
 
 class config:
     
-    data_dir="/content/"
-    data_loading_script="/content/indic-asr/src/loader.py"
+    data_dir="/home/krishnarajule3/ASR/data/Hindi-English/"
+    data_loading_script="./loader.py"
 
     use_monolingual=False
     monolingual_data_dir="/home/krishnarajule3/ASR/data/Hindi/"
@@ -32,6 +32,7 @@ class config:
     language_identification_asr=True # for both tasks simultaneously
     lang_param=0.25
 
+    #inference for LM install Kenlm and make a 5-gram model
     lm_model=None
     asr_model='/content/gdrive/MyDrive/ASR_wav2vec_weights/LID_ASR/pytorch_model2.bin'
     file_path=""
