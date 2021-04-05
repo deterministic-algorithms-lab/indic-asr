@@ -54,7 +54,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
 
         loss=0
         epoch_loss = 0
-        
+        wer_score=[]
         if mono_dataloader is not None:
             pbar=tqdm(itertools.chain(train_dataloader, mono_dataloader), desc="Training epoch %d"%(epoch))
         else:
@@ -168,51 +168,51 @@ def compute_metric(model, tokenizer, test_dataset):
     pbar = tqdm(test_dataset, desc="Computing metric")
 
     show_sample_no = random.randint(1, len(test_dataset)-1)
+    with torch.no_grad():
+        for i, d in enumerate(pbar):
 
-    for i, d in enumerate(pbar):
-        
-        sp,sr=sf.read(d["speech"])
-        input_values = tokenizer(sp[sr*d['start']:sr*d['end']], return_tensors="pt", 
-                                     padding='longest').input_values.to(config.device)
-        
-        logits1,logits2=None,None
-        logits = model(input_values)
+            sp,sr=sf.read(d["speech"])
+            input_values = tokenizer(sp[sr*d['start']:sr*d['end']], return_tensors="pt", 
+                                         padding='longest').input_values.to(config.device)
 
-        if config.language_identification_asr:
-            logits1,logits2=F.log_softmax(logits[0].logits,dim=-1),F.log_softmax(logits[1].logits,dim=-1)
-        else:
-            logits1=F.log_softmax(logits.logits,dim=-1)
+            logits1,logits2=None,None
+            logits = model(input_values)
 
-
-        predicted_ids = torch.argmax(logits1, dim=-1).cpu()
-        transcriptions = tokenizer.batch_decode(predicted_ids)
+            if config.language_identification_asr:
+                logits1,logits2=F.log_softmax(logits[0].logits,dim=-1),F.log_softmax(logits[1].logits,dim=-1)
+            else:
+                logits1=F.log_softmax(logits.logits,dim=-1)
 
 
-        if config.language_identification:
-            
-            print("Sample prediction: ", transcriptions[0].replace('<s>','1').replace('</s>','2'))
-            print("Sample reference: ", d['text'].upper())
-            return 
-       
+            predicted_ids = torch.argmax(logits1, dim=-1).cpu()
+            transcriptions = tokenizer.batch_decode(predicted_ids)
 
-        if config.language_identification_asr:
-            words_id= torch.argmax(logits2, dim=-1).cpu()
-            
-            words_id= tokenizer.batch_decode(words_id)
-            transcriptions = tokenizer.revert_transliteration(zip(transcriptions,words_id))
-        else:
-            if config.transliterate:
-               transcriptions = tokenizer.revert_transliteration(transcriptions)
-        
-        reference = d['text'].upper()
-        
-        if i==show_sample_no or i==0:
-            print("Sample prediction: ", transcriptions)
-            print("Sample reference: ", reference)
-        
-        metric.add_batch(predictions=transcriptions, 
-                         references=[reference])
-    
+
+            if config.language_identification:
+
+                print("Sample prediction: ", transcriptions[0].replace('<s>','1').replace('</s>','2'))
+                print("Sample reference: ", d['text'].upper())
+                return 
+
+
+            if config.language_identification_asr:
+                words_id= torch.argmax(logits2, dim=-1).cpu()
+
+                words_id= tokenizer.batch_decode(words_id)
+                transcriptions = tokenizer.revert_transliteration(zip(transcriptions,words_id))
+            else:
+                if config.transliterate:
+                   transcriptions = tokenizer.revert_transliteration(transcriptions)
+
+            reference = d['text'].upper()
+
+            if i==show_sample_no or i==0:
+                print("Sample prediction: ", transcriptions)
+                print("Sample reference: ", reference)
+
+            metric.add_batch(predictions=transcriptions, 
+                             references=[reference])
+
     score = metric.compute()
     print("Evaluation metric: ", score)
     return score

@@ -27,6 +27,7 @@ class config:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     max_audio_len=576000
     freeze_for_epochs=0
+
     transliterate=True
     language_identification=False #only For language identification task
     language_identification_asr=True # for both tasks simultaneously
@@ -35,7 +36,8 @@ class config:
     #inference for LM install Kenlm and make a 5-gram model
     lm_model=None
     asr_model='/content/gdrive/MyDrive/ASR_wav2vec_weights/LID_ASR/pytorch_model2.bin'
-    file_path=""
+    file_path=""    
+
 
 def get_all_params_dict(config):
     params = {}

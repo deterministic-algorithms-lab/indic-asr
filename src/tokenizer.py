@@ -18,12 +18,13 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not config.transliterate:
-            for i in range(2304, 2432) :
+            for i in range(config.Language[0], config.Language[1]) :
                 self._add_tokens(chr(i))
         else:
             self.en_dict = enchant.Dict("en_US")
             for elem in ['̄', '̣', '̐', '́', '़', "'ॉ", '̃', '_', 'ऑ', '^', '…', '°', '̂', '̱',  'ॅ', 'ऍ', ':']:
                 self._add_tokens(elem)
+        
         self.mappings = {'$': ' dollar ', '@' : ' at the rate ', '+': ' plus ', '<':' less than ', '>' : ' greater than ', '&' : ' and ', '%':' percent '}
 
     def normalize(self, text):
@@ -45,7 +46,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     def remove_sos(self, texts: List[str]) -> List[str]:
         processed_texts = []
         for text in texts:
-            processed_texts.append(text[3:] if text.startswith('<S>') else text)
+            processed_texts.append(text.replace('<s>','').replace('</s>',''))
         return processed_texts
     
     def revert_transliteration(self, texts: Union[List[str],Tuple[List[str],List[str]]])->str:
