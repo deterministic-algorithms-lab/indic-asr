@@ -18,8 +18,9 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not config.transliterate:
-            for i in range(config.Language[0], config.Language[1]) :
-                self._add_tokens(chr(i))
+            for lang in config.Language:
+                for i in range(lang[0], lang[1]) :
+                    self._add_tokens(chr(i))
         else:
             self.en_dict = enchant.Dict("en_US")
             for elem in ['̄', '̣', '̐', '́', '़', "'ॉ", '̃', '_', 'ऑ', '^', '…', '°', '̂', '̱',  'ॅ', 'ऍ', ':']:
@@ -45,7 +46,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
     def remove_sos(self, texts: List[str]) -> List[str]:
         processed_texts = []
         for text in texts:
-            processed_texts.append(text.replace('<s>','').replace('</s>',''))
+            processed_texts.append(text.replace('<S>','').replace('</S>',''))
         return processed_texts
     
     def revert_transliteration(self, texts: List[str])->str:
@@ -76,7 +77,10 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         """
         if config.transliterate:
             text = self.transliterate(text)
-
+        else:
+            for k,v in self.mappings.items():
+                text = text.replace(k, v)
+                
         text = ' '.join(text.split())
         text = text.replace(' ', self.word_delimiter_token)
         tokens = [self.bos_token_id]

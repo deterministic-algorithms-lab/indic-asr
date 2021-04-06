@@ -1,19 +1,34 @@
+import os
+import itertools
+import soundfile as sf
+import wandb
+import random
+import argparse
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import os
-import itertools
-import soundfile as sf
 
-import argparse
 from tqdm import tqdm
 from configs import config, get_all_params_dict
 from model import get_model
 from tokenizer import Wav2Vec2Tok
 from datasets import load_dataset, load_metric
-import wandb
-import random
+from Monodataset import MonoData
+
+
+def mono_collate_fn(batch, tokenizer):
+    
+    speech_lis = [sf.read(elem[0])[0] for elem in batch]
+    text_lis = [elem[1] for elem in batch]
+    
+    input_values = tokenizer(speech_lis, return_tensors="pt", 
+                                     padding='longest').input_values
+
+    labels, label_lengths = tokenizer.batch_tokenize(text_lis)
+
+    return (input_values.to(config.device), labels.to(config.device), label_lengths.to(config.device))
 
 def find_lengths(logits, pad_id: int) -> torch.FloatTensor:
     """
@@ -137,22 +152,31 @@ def compute_metric(model, tokenizer, test_dataset):
     metric = load_metric('wer')
 
     pbar = tqdm(test_dataset, desc="Computing metric")
-
+    score=[]
     show_sample_no = random.randint(1, len(test_dataset)-1)
     with torch.no_grad():
         for i, d in enumerate(pbar):
-
-            input_values = tokenizer(d["speech"], return_tensors="pt", 
+            
+            if not config.mono:
+                input_values = tokenizer(d["speech"], return_tensors="pt", 
                                      padding='longest').input_values.to(config.device)
-
+            else:
+                input_values = tokenizer(sf.read(d[0])[0], return_tensors="pt", 
+                                     padding='longest').input_values.to(config.device)
+            
             logits = model(input_values).logits
 
             predicted_ids = torch.argmax(logits, dim=-1).cpu()
             transcriptions = tokenizer.batch_decode(predicted_ids)
-            transcriptions = tokenizer.revert_transliteration(transcriptions)
-
-            reference = d['text'].upper() 
-
+            
+            if config.transliterate:
+                transcriptions = tokenizer.revert_transliteration(transcriptions)
+            else:
+                for k,v in self.mappings.items():
+                    text = text.replace(v.strip(),k)
+                    
+            reference = d['text'].upper()
+            
             if i==show_sample_no or i==0:
                 print("Sample prediction: ", transcriptions[0])
                 print("Sample reference: ", reference)
@@ -160,7 +184,8 @@ def compute_metric(model, tokenizer, test_dataset):
             metric.add_batch(predictions=transcriptions, 
                              references=[reference])
     
-    score = metric.compute()
+            score.append(metric.compute())
+    score=sum(score)/len(score)
     print("Evaluation metric: ", score)
     return score
 
@@ -193,22 +218,34 @@ if __name__ =='__main__':
     params = {'batch_size': config.BATCH_SIZE,}
     
     print("running on ", config.device)
-
-    train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[2%:]", writer_batch_size=1000)
-    val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2%]", writer_batch_size=1000)
-    test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="test", writer_batch_size=1000)
     
+    if not config.mono:
+        train_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[2%:]", writer_batch_size=1000)
+        val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2%]", writer_batch_size=1000)
+        test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="test", writer_batch_size=1000)
+    else:
+        train_dataset=MonoData(path=config.mono_train_path)
+        test_dataset=MonoData(path=config.mono_test_path)
+        val_dataset=test_dataset
+        
     if config.use_monolingual:
         mono_dataset = load_dataset(config.data_loading_script, data_dir=config.monolingual_data_dir, split="train", writer_batch_size=1000)
         mono_dataloader = torch.utils.data.DataLoader(dataset=mono_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
     else:
         mono_dataloader = None
 
+    print(compute_metric(model, tokenizer, test_dataset))
+
     if(config.train):
-        train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
-        val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
-        train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset, mono_dataloader)
-    
+        if not config.mono:
+            train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
+            val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
+            train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset, mono_dataloader)
+        else:
+            train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, collate_fn= lambda b: mono_collate_fn(b, tokenizer), **params)
+            val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, collate_fn= lambda b: mono_collate_fn(b, tokenizer), **params)
+            train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset)
+            
     if(config.eval):
         print(compute_metric(model, tokenizer, test_dataset))
     
