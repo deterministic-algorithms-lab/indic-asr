@@ -1,33 +1,21 @@
+import os
+import itertools
+import soundfile as sf
+import wandb
+import random
+import argparse
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import os
-import itertools
-import soundfile as sf
 
-import argparse
 from tqdm import tqdm
 from configs import config, get_all_params_dict
 from model import get_model
 from tokenizer import Wav2Vec2Tok
 from datasets import load_dataset, load_metric
-import wandb
-import random
-
-
-class MonoData(Dataset):
-    def __init__(self,path):
-        self.path=path
-        self.file=open(path+'/transcription.txt','r',encoding='UTF-8').read().split("\n")
-    
-    def __len__(self):
-        return len(self.file)
-    
-    def __getitem__(self,index):
-        audio,text=self.file[index].split(' ',1)
-        audio=self.path+'/Audios/'+audio
-        return audio,text
+from Monodataset import MonoData
 
 def mono_collate_fn(batch, tokenizer):
     
@@ -179,8 +167,12 @@ def compute_metric(model, tokenizer, test_dataset):
 
             predicted_ids = torch.argmax(logits, dim=-1).cpu()
             transcriptions = tokenizer.batch_decode(predicted_ids)
-            transcriptions = tokenizer.revert_transliteration(transcriptions)
-
+            if config.transliterate:
+                transcriptions = tokenizer.revert_transliteration(transcriptions)
+            else:
+                for k,v in self.mappings.items():
+                    text = text.replace(v.strip(),k)
+                    
             reference = d['text'].upper() 
 
             if i==show_sample_no or i==0:
@@ -247,7 +239,7 @@ if __name__ =='__main__':
         else:
             train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, collate_fn= lambda b: mono_collate_fn(b, tokenizer), **params)
             val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, collate_fn= lambda b: mono_collate_fn(b, tokenizer), **params)
-            train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset, mono_dataloader)
+            train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset)
             
     if(config.eval):
         print(compute_metric(model, tokenizer, test_dataset))

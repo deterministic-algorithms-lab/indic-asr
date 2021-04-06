@@ -3,14 +3,10 @@ import torch
 
 class config:
     
-    data_dir="/home/krishnarajule3/ASR/data/Hindi-English/"
-    data_loading_script="/home/datasets/code_switch_asr"
-
-    use_monolingual=False
-    monolingual_data_dir="/home/krishnarajule3/ASR/data/Hindi/"
+    
     
     model="facebook/wav2vec2-base-960h"
-    fast_LR=1e-3                                                                    #To be used when initial weights are frozen
+    fast_LR=1e-3              #To be used when initial weights are frozen
     LR=1e-6
     clip_grad_norm=1.0
     EPOCHS=0
@@ -36,14 +32,25 @@ class config:
     Oriya=(2816,2943+1)
     Gujrati=(2688,2815+1)
     Hindi=(2304,2431+1)
+    Bengali=(2433,2554+1)
     Marathi=Hindi
     
-    Language=Gujrati #select the language
+    Language=[Gujrati]         #select the language (can add multiple languages to the list)
     
-    mono=True
-    mono_train_path="./"
-    mono_test_path="./"
+    #Mono-Language Training
+    
+    mono=True                  #to specify training for the monolingual language (to use mono dataset)
+    mono_train_path="./"       #path to training folder 
+    mono_test_path="./"        #path to testing folder
+    
+    #Code Switched Training (set mono=False, to use code-switched loader.py)
+    
+    data_dir="/home/krishnarajule3/ASR/data/Hindi-English/"
+    data_loading_script="/home/datasets/code_switch_asr"
 
+    use_monolingual=False
+    monolingual_data_dir="/home/krishnarajule3/ASR/data/Hindi/"
+    
 def get_all_params_dict(config):
     params = {}
     for k, v in config.__dict__.items():
