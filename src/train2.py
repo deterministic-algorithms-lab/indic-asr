@@ -17,6 +17,7 @@ from tokenizer import Wav2Vec2Tok
 from datasets import load_dataset, load_metric
 from Monodataset import MonoData
 
+
 def mono_collate_fn(batch, tokenizer):
     
     speech_lis = [sf.read(elem[0])[0] for elem in batch]
@@ -151,7 +152,7 @@ def compute_metric(model, tokenizer, test_dataset):
     metric = load_metric('wer')
 
     pbar = tqdm(test_dataset, desc="Computing metric")
-
+    score=[]
     show_sample_no = random.randint(1, len(test_dataset)-1)
     with torch.no_grad():
         for i, d in enumerate(pbar):
@@ -160,21 +161,22 @@ def compute_metric(model, tokenizer, test_dataset):
                 input_values = tokenizer(d["speech"], return_tensors="pt", 
                                      padding='longest').input_values.to(config.device)
             else:
-                input_values = tokenizer(sf.read(d["speech"])[0], return_tensors="pt", 
+                input_values = tokenizer(sf.read(d[0])[0], return_tensors="pt", 
                                      padding='longest').input_values.to(config.device)
             
             logits = model(input_values).logits
 
             predicted_ids = torch.argmax(logits, dim=-1).cpu()
             transcriptions = tokenizer.batch_decode(predicted_ids)
+            
             if config.transliterate:
                 transcriptions = tokenizer.revert_transliteration(transcriptions)
             else:
                 for k,v in self.mappings.items():
                     text = text.replace(v.strip(),k)
                     
-            reference = d['text'].upper() 
-
+            reference = d['text'].upper()
+            
             if i==show_sample_no or i==0:
                 print("Sample prediction: ", transcriptions[0])
                 print("Sample reference: ", reference)
@@ -182,7 +184,8 @@ def compute_metric(model, tokenizer, test_dataset):
             metric.add_batch(predictions=transcriptions, 
                              references=[reference])
     
-    score = metric.compute()
+            score.append(metric.compute())
+    score=sum(score)/len(score)
     print("Evaluation metric: ", score)
     return score
 
@@ -230,6 +233,8 @@ if __name__ =='__main__':
         mono_dataloader = torch.utils.data.DataLoader(dataset=mono_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
     else:
         mono_dataloader = None
+
+    print(compute_metric(model, tokenizer, test_dataset))
 
     if(config.train):
         if not config.mono:
