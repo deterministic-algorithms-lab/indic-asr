@@ -54,7 +54,7 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
 
         loss=0
         epoch_loss = 0
-        wer_score=[]
+        
         if mono_dataloader is not None:
             pbar=tqdm(itertools.chain(train_dataloader, mono_dataloader), desc="Training epoch %d"%(epoch))
         else:
@@ -91,15 +91,15 @@ def train_model(model, tokenizer, train_dataloader, val_dataloader, test_dataset
             if(iters%config.num_iters_checkpoint==0):
                 model.eval()
                 
-                val_losses=eval_model(model, tokenizer, val_dataloader)
+                val_losses.append(eval_model(model, tokenizer, val_dataloader))
                 
-                wer_score.append(compute_metric(model, tokenizer, test_dataset))
+                wer_score = compute_metric(model, tokenizer, test_dataset)
                 
-                wandb.log({'validation_loss' : val_losses,
-                            'wer_on_test_set': wer_score[-1]})
+                wandb.log({'validation_loss' : val_losses[-1],
+                            'wer_on_test_set': wer_score})
                 
                 model.train()
-                if min(wer_score)==wer_score[-1]:
+                if min(val_losses)==val_losses[-1]:
                     save_checkpoint(model, str(epoch))
         
         print("Mean loss for epoch %d : "%epoch, (epoch_loss / num_train_batches))
@@ -139,26 +139,26 @@ def compute_metric(model, tokenizer, test_dataset):
     pbar = tqdm(test_dataset, desc="Computing metric")
 
     show_sample_no = random.randint(1, len(test_dataset)-1)
-    with torch.no_grad():
-        for i, d in enumerate(pbar):
 
-            input_values = tokenizer(d["speech"], return_tensors="pt", 
-                                     padding='longest').input_values.to(config.device)
+    for i, d in enumerate(pbar):
+        
+        input_values = tokenizer(d["speech"], return_tensors="pt", 
+                                 padding='longest').input_values.to(config.device)
 
-            logits = model(input_values).logits
+        logits = model(input_values).logits
 
-            predicted_ids = torch.argmax(logits, dim=-1).cpu()
-            transcriptions = tokenizer.batch_decode(predicted_ids)
-            transcriptions = tokenizer.revert_transliteration(transcriptions)
-
-            reference = d['text'].upper() 
-
-            if i==show_sample_no or i==0:
-                print("Sample prediction: ", transcriptions[0])
-                print("Sample reference: ", reference)
-
-            metric.add_batch(predictions=transcriptions, 
-                             references=[reference])
+        predicted_ids = torch.argmax(logits, dim=-1).cpu()
+        transcriptions = tokenizer.batch_decode(predicted_ids)
+        transcriptions = tokenizer.revert_transliteration(transcriptions)
+        
+        reference = d['text'].upper() 
+        
+        if i==show_sample_no or i==0:
+            print("Sample prediction: ", transcriptions[0])
+            print("Sample reference: ", reference)
+        
+        metric.add_batch(predictions=transcriptions, 
+                         references=[reference])
     
     score = metric.compute()
     print("Evaluation metric: ", score)

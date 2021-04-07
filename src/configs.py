@@ -28,19 +28,6 @@ class config:
     max_audio_len=576000
     freeze_for_epochs=0
     transliterate=False
-    
-    #Support for additional languages
-    Telugu=(3072,3199+1)
-    Tamil=(2944,3071+1)
-
-    Oriya=(2816,2943+1)
-    Gujrati=(2688,2815+1)
-    Hindi=(2304,2431+1)
-    Marathi=Hindi
-    
-    Language=Gujrati #select the language
-    
-    
 
 def get_all_params_dict(config):
     params = {}
