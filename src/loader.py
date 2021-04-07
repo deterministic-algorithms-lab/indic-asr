@@ -76,6 +76,13 @@ _DL_URLS = {
 }
 
 
+
+_LANG_CODES = {
+    "Tamil": "ta",
+    "Gujarati": "gu",
+    "Telegu" : "te",   
+}
+
 class CodeSwitchASRConfig(datasets.BuilderConfig):
     """BuilderConfig for CodeSwitchASR."""
 
@@ -104,13 +111,11 @@ class CodeSwitchASR(datasets.GeneratorBasedBuilder):
             description=_DESCRIPTION,
             features=datasets.Features(
                 {
-                    "speech": datasets.Value("string"),
+                    "speech": datasets.Sequence(feature=datasets.Value('float32')),
                     "text": datasets.Value("string"),
                     "speaker_id": datasets.Value("int64"),
                     "chapter_id": datasets.Value("int64"),
                     "id": datasets.Value("string"),
-                    "start":datasets.Value("int64"),
-                    "end":datasets.Value("int64")
                 }
             ),
             supervised_keys=("speech", "text"),
@@ -118,7 +123,7 @@ class CodeSwitchASR(datasets.GeneratorBasedBuilder):
             citation=_CITATION,
         )
 
-    def _split_generators(self, dl_manager):
+    def _split_generators_simple(self, dl_manager):
         if self.config.name not in _DL_URLS:
             root = self.config.data_dir
             archive_path = {'train' : os.path.join(root, 'train/'),
@@ -134,6 +139,33 @@ class CodeSwitchASR(datasets.GeneratorBasedBuilder):
             datasets.SplitGenerator(name=datasets.Split.TEST, gen_kwargs={"archive_path": archive_path['test']}),
         ]
     
+    def _split_generators_with_measurement(self, dl_manager):
+        if self.config.name not in _DL_URLS:
+            root = self.config.data_dir
+            archive_path = {'train' : os.path.join(root, _LANG_CODES[root.split('/')[-1]]+'-in-Train/'),
+                            'test': os.path.join(root, _LANG_CODES[root.split('/')[-1]]+'-in-Test/'),
+                            'Measurement' : os.path.join(root, _LANG_CODES[root.split('/')[-1]]+'-in-Measurement/'),}
+        else:
+            archive_path = dl_manager.download_and_extract(_DL_URLS[self.config.name])
+
+        train_splits = [
+                datasets.SplitGenerator(name='train', gen_kwargs={"archive_path": archive_path['train']}),
+            ]
+        
+        #meas_splits =  [
+        #        datasets.SplitGenerator(name='Measurement', gen_kwargs={"archive_path": archive_path['Measurement']}),
+        #    ]
+        
+        return train_splits + [
+            datasets.SplitGenerator(name=datasets.Split.TEST, gen_kwargs={"archive_path": archive_path['test']}),
+        ] #+ meas_splits
+    
+    def _split_generators(self, dl_manager):
+        if '-' in self.config.name or self.config.data_dir.split('/')[-1] not in _LANG_CODES:
+            return self._split_generators_simple(dl_manager)
+        else:
+            return self._split_generators_with_measurement(dl_manager)
+        
     def make_idx_dicts(self, speaker_file, segments_file, text_file):
         self.speaker_to_idx = dict()
         with open(speaker_file) as f:
@@ -155,7 +187,7 @@ class CodeSwitchASR(datasets.GeneratorBasedBuilder):
                 id, text = elem.strip().split(' ', 1)
                 self.id_to_text[id] = text
         
-    def _generate_examples(self, archive_path):
+    def _generate_examples_code_switch(self, archive_path):
         """Generate examples from a CodeSwitch archive_path."""
         segments_file = os.path.join(archive_path, 'transcripts/segments')
         speaker_file = os.path.join(archive_path, 'transcripts/spkr_list')
@@ -169,7 +201,7 @@ class CodeSwitchASR(datasets.GeneratorBasedBuilder):
                 line = line.strip().split()
                 
                 if cur_file != line[1]+'.wav':
-                    speech=os.path.join(archive_path, line[1]+'.wav')
+                    speech, sr = sf.read(os.path.join(archive_path, line[1]+'.wav'))
                 
                 start_time, end_time = float(line[2]), float(line[3])
                 
@@ -178,8 +210,38 @@ class CodeSwitchASR(datasets.GeneratorBasedBuilder):
                     "speaker_id" : self.speaker_to_idx[line[0].split('_')[0]],
                     "chapter_id" : self.chapter_to_idx[line[1]],
                     "text" : self.id_to_text[line[0]],
-                    "speech" : speech,
-                    "start":start_time,
-                    "end":end_time
+                    "speech" : speech[int(start_time*sr):int(end_time*sr)]
                 }
+                
                 yield line[0], example
+    
+    def _generate_examples_mono(self, archive_path):
+        transcripts_file = os.path.join(archive_path, 'transcription.txt')
+        with open(transcripts_file) as f:
+            files_n_text = [line.strip().split(None,1) for line in f.readlines()]
+            
+            try:
+                audio_dir = 'Audios'
+                speech, sr = sf.read(os.path.join(archive_path, audio_dir, wav_file+'.wav'))
+            except:
+                audio_dir = 'audio'
+            
+            for wav_file, text in files_n_text:
+                speech, sr = sf.read(os.path.join(archive_path, audio_dir, wav_file+'.wav'))
+                example = {
+                    "id" : wav_file,
+                    "speaker_id" : -1,
+                    "chapter_id" : -1,
+                    "text" : text,
+                    "speech" : speech,
+                }
+                
+                yield wav_file, example
+    
+    def _generate_examples(self, archive_path):
+        if '-' in archive_path.split('/')[-3]:
+            for sample in self._generate_examples_code_switch(archive_path):
+                yield sample
+        else:
+            for sample in self._generate_examples_mono(archive_path):
+                yield sample
