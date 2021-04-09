@@ -4,20 +4,20 @@ import torch
 class config:
     
 #     'facebook/wav2vec2-large-xlsr-53'
-    
+#     'facebook/wav2vec2-base-960h'
     model="facebook/wav2vec2-base-960h"
     fast_LR=1e-3              #To be used when initial weights are frozen
-    LR=1e-6
+    LR=1e-5
     clip_grad_norm=1.0
-    EPOCHS=0
-    num_iters_checkpoint=70
+    EPOCHS=1000
+    num_iters_checkpoint=56000
     prev_checkpoint=""
     
     output_directory="./model/"
     
     os.makedirs(output_directory, exist_ok=True)
     
-    BATCH_SIZE=2
+    BATCH_SIZE=8
     SHUFFLE=True
     eval=True
     train=True
@@ -37,13 +37,19 @@ class config:
     Bengali=(2433,2554+1)
     Marathi=Hindi
     
-    Language=[Hindi,Gujrati,Telugu,Tamil,Odia]         #select the language (can add multiple languages to the list)
+    Language=[Hindi,Gujarati,Telugu,Tamil,Odia]         #select the language (can add multiple languages to the list)
     
     #Mono-Language Training
     
     mono=True                     #to specify training for the monolingual language (to use mono dataset)
-    mono_train_path=["./",]       #path to training folder 
-    mono_test_path=["./",]        #path to testing folder
+
+    mono_train_path=["/home/krishnarajule3/ASR/data/Hindi/train","/home/krishnarajule3/ASR/data/Marathi/train","/home/krishnarajule3/ASR/data/Odia/train",
+			"/home/krishnarajule3/ASR/data/Gujarati/gu-in-Train","/home/krishnarajule3/ASR/data/Tamil/ta-in-Train","/home/krishnarajule3/ASR/data/Telegu/te-in-Train"
+			]       #path to training folder 
+
+    mono_test_path=["/home/krishnarajule3/ASR/data/Hindi/test","/home/krishnarajule3/ASR/data/Marathi/test","/home/krishnarajule3/ASR/data/Odia/test",
+			"/home/krishnarajule3/ASR/data/Gujarati/gu-in-Test","/home/krishnarajule3/ASR/data/Tamil/ta-in-Test","/home/krishnarajule3/ASR/data/Telegu/te-in-Train"
+			]        #path to testing folder
     
     #Code Switched Training (set mono=False, to use code-switched loader.py)
     

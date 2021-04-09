@@ -18,18 +18,6 @@ from datasets import load_dataset, load_metric
 from Monodataset import MonoData
 
 
-def mono_collate_fn(batch, tokenizer):
-    
-    speech_lis = [sf.read(elem[0])[0] for elem in batch]
-    text_lis = [elem[1] for elem in batch]
-    
-    input_values = tokenizer(speech_lis, return_tensors="pt", 
-                                     padding='longest').input_values
-
-    labels, label_lengths = tokenizer.batch_tokenize(text_lis)
-
-    return (input_values.to(config.device), labels.to(config.device), label_lengths.to(config.device))
-
 def find_lengths(logits, pad_id: int) -> torch.FloatTensor:
     """
     Function to find lengths of output sequences
@@ -168,7 +156,7 @@ def compute_metric(model, tokenizer, test_dataset):
                         input_values = tokenizer(d["speech"], return_tensors="pt", 
                                              padding='longest').input_values.to(config.device)
                     else:
-                        input_values = tokenizer(sf.read(d[0])[0], return_tensors="pt", 
+                        input_values = tokenizer(sf.read(d["speech"])[0], return_tensors="pt", 
                                              padding='longest').input_values.to(config.device)
 
                     logits = model(input_values).logits
@@ -179,19 +167,22 @@ def compute_metric(model, tokenizer, test_dataset):
                     if config.transliterate:
                         transcriptions = tokenizer.revert_transliteration(transcriptions)
                     else:
-                        for k,v in self.mappings.items():
-                            text = text.replace(v.strip(),k)
+                        for k,v in tokenizer.mappings.items():
+                            transcriptions[0]= transcriptions[0].replace(v.strip(),k)
 
+                    transcriptions[0]=transcriptions[0].replace('<S>','').replace('</S>','')
                     reference = d['text'].upper()
 
                     if i==show_sample_no or i==0:
                         print("Sample prediction: ", transcriptions[0])
                         print("Sample reference: ", reference)
 
-                    metric.add_batch(predictions=transcriptions, 
-                                     references=[reference])
+                    #metric.add_batch(predictions=transcriptions, 
+                    #                 references=[reference])
+                    
+                    score.append(metric.compute(predictions=transcriptions,references=[reference]))
 
-            score=metric.compute()
+            score=sum(score)/len(score)
             print("Evaluation metric: ", score)
             wer_score.append(score)
     
@@ -203,6 +194,18 @@ def compute_metric(model, tokenizer, test_dataset):
 def collate_fn(batch, tokenizer):
     speech_lis = [elem["speech"] for elem in batch]
     text_lis = [elem["text"].upper() for elem in batch]
+    
+    input_values = tokenizer(speech_lis, return_tensors="pt", 
+                                     padding='longest').input_values
+
+    labels, label_lengths = tokenizer.batch_tokenize(text_lis)
+
+    return (input_values.to(config.device), labels.to(config.device), label_lengths.to(config.device))
+
+def mono_collate_fn(batch, tokenizer):
+    
+    speech_lis = [sf.read(elem['speech'])[0] for elem in batch]
+    text_lis = [elem['text'] for elem in batch]
     
     input_values = tokenizer(speech_lis, return_tensors="pt", 
                                      padding='longest').input_values
@@ -242,11 +245,11 @@ if __name__ =='__main__':
             test_dataset.append(MonoData(path=j))
         
         if(len(config.mono_train_path)>1):
-            train_dataset=ConcatDataset(train_dataset)
+            train_dataset=torch.utils.data.ConcatDataset(train_dataset)
         else:
             train_dataset=train_dataset[0]
         if(len(config.mono_test_path)>1):
-            val_dataset=ConcatDataset(test_dataset)
+            val_dataset=torch.utils.data.ConcatDataset(test_dataset)
         else:
             val_dataset=test_dataset[0]
         
@@ -255,6 +258,8 @@ if __name__ =='__main__':
         mono_dataloader = torch.utils.data.DataLoader(dataset=mono_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
     else:
         mono_dataloader = None
+
+    #print(compute_metric(model, tokenizer, test_dataset))
 
     if(config.train):
         if not config.mono:
