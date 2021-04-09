@@ -149,44 +149,55 @@ def eval_model(model, tokenizer, val_dataloader):
     return (epoch_loss / num_valid_batches)
 
 def compute_metric(model, tokenizer, test_dataset):
-    metric = load_metric('wer')
-
-    pbar = tqdm(test_dataset, desc="Computing metric")
-    score=[]
-    show_sample_no = random.randint(1, len(test_dataset)-1)
-    with torch.no_grad():
-        for i, d in enumerate(pbar):
-            
-            if not config.mono:
-                input_values = tokenizer(d["speech"], return_tensors="pt", 
-                                     padding='longest').input_values.to(config.device)
-            else:
-                input_values = tokenizer(sf.read(d[0])[0], return_tensors="pt", 
-                                     padding='longest').input_values.to(config.device)
-            
-            logits = model(input_values).logits
-
-            predicted_ids = torch.argmax(logits, dim=-1).cpu()
-            transcriptions = tokenizer.batch_decode(predicted_ids)
-            
-            if config.transliterate:
-                transcriptions = tokenizer.revert_transliteration(transcriptions)
-            else:
-                for k,v in self.mappings.items():
-                    text = text.replace(v.strip(),k)
-                    
-            reference = d['text'].upper()
-            
-            if i==show_sample_no or i==0:
-                print("Sample prediction: ", transcriptions[0])
-                print("Sample reference: ", reference)
-
-            metric.add_batch(predictions=transcriptions, 
-                             references=[reference])
     
-            score.append(metric.compute())
-    score=sum(score)/len(score)
-    print("Evaluation metric: ", score)
+    wer_score=[]
+    model.eval()
+    if not isinstance(test_dataset,list):
+        test_dataset=[test_dataset]
+        
+    with torch.no_grad():
+        for dataset in test_dataset:
+            metric = load_metric('wer')
+            pbar = tqdm(dataset, desc="Computing metric")
+            score=[]
+            show_sample_no = random.randint(1, len(dataset)-1)
+            with torch.no_grad():
+                for i, d in enumerate(pbar):
+
+                    if not config.mono:
+                        input_values = tokenizer(d["speech"], return_tensors="pt", 
+                                             padding='longest').input_values.to(config.device)
+                    else:
+                        input_values = tokenizer(sf.read(d[0])[0], return_tensors="pt", 
+                                             padding='longest').input_values.to(config.device)
+
+                    logits = model(input_values).logits
+
+                    predicted_ids = torch.argmax(logits, dim=-1).cpu()
+                    transcriptions = tokenizer.batch_decode(predicted_ids)
+
+                    if config.transliterate:
+                        transcriptions = tokenizer.revert_transliteration(transcriptions)
+                    else:
+                        for k,v in self.mappings.items():
+                            text = text.replace(v.strip(),k)
+
+                    reference = d['text'].upper()
+
+                    if i==show_sample_no or i==0:
+                        print("Sample prediction: ", transcriptions[0])
+                        print("Sample reference: ", reference)
+
+                    metric.add_batch(predictions=transcriptions, 
+                                     references=[reference])
+
+            score=metric.compute()
+            print("Evaluation metric: ", score)
+            wer_score.append(score)
+    
+    print(wer_score)
+    
+    score=sum(wer_score)/len(wer_score)
     return score
 
 def collate_fn(batch, tokenizer):
@@ -215,7 +226,7 @@ if __name__ =='__main__':
     if(config.prev_checkpoint!=""):
         model=load_checkpoint(model,config.prev_checkpoint)
     
-    params = {'batch_size': config.BATCH_SIZE,}
+    params = {'batch_size': config.BATCH_SIZE,'shuffle': config.SHUFFLE}
     
     print("running on ", config.device)
     
@@ -224,17 +235,26 @@ if __name__ =='__main__':
         val_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="train[:2%]", writer_batch_size=1000)
         test_dataset = load_dataset(config.data_loading_script, data_dir=config.data_dir, split="test", writer_batch_size=1000)
     else:
-        train_dataset=MonoData(path=config.mono_train_path)
-        test_dataset=MonoData(path=config.mono_test_path)
-        val_dataset=test_dataset
+        train_dataset=[]
+        test_dataset=[]
+        for i,j in zip(config.mono_train_path,config.mono_test_path):
+            train_dataset.append(MonoData(path=i))
+            test_dataset.append(MonoData(path=j))
+        
+        if(len(config.mono_train_path)>1):
+            train_dataset=ConcatDataset(train_dataset)
+        else:
+            train_dataset=train_dataset[0]
+        if(len(config.mono_test_path)>1):
+            val_dataset=ConcatDataset(test_dataset)
+        else:
+            val_dataset=test_dataset[0]
         
     if config.use_monolingual:
         mono_dataset = load_dataset(config.data_loading_script, data_dir=config.monolingual_data_dir, split="train", writer_batch_size=1000)
         mono_dataloader = torch.utils.data.DataLoader(dataset=mono_dataset, collate_fn= lambda b: collate_fn(b, tokenizer), **params)
     else:
         mono_dataloader = None
-
-    print(compute_metric(model, tokenizer, test_dataset))
 
     if(config.train):
         if not config.mono:

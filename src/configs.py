@@ -3,7 +3,7 @@ import torch
 
 class config:
     
-    
+#     'facebook/wav2vec2-large-xlsr-53'
     
     model="facebook/wav2vec2-base-960h"
     fast_LR=1e-3              #To be used when initial weights are frozen
@@ -37,13 +37,13 @@ class config:
     Bengali=(2433,2554+1)
     Marathi=Hindi
     
-    Language=[Gujrati]         #select the language (can add multiple languages to the list)
+    Language=[Hindi,Gujrati,Telugu,Tamil,Odia]         #select the language (can add multiple languages to the list)
     
     #Mono-Language Training
     
-    mono=True                  #to specify training for the monolingual language (to use mono dataset)
-    mono_train_path="./"       #path to training folder 
-    mono_test_path="./"        #path to testing folder
+    mono=True                     #to specify training for the monolingual language (to use mono dataset)
+    mono_train_path=["./",]       #path to training folder 
+    mono_test_path=["./",]        #path to testing folder
     
     #Code Switched Training (set mono=False, to use code-switched loader.py)
     
