@@ -15,12 +15,12 @@ def get_model(tokenizer, n_langs=2):
     Returns:
         The constructed model, having len(tokenizer)+n_langs+1 outputs in the last layer.
     """
-    model = Wav2Vec2.from_pretrained(config.model)
+    model = Wav2Vec2ForCTC.from_pretrained(config.model)
     
     pt_wts = model.lm_head.weight
     pt_bias = model.lm_head.bias
 
-    new_lm_head = nn.Linear(pt_wts.shape[1], len(tokenizer)+n_langs+1)
+    new_lm_head = nn.Linear(pt_wts.shape[1], len(tokenizer)+(0 if n_langs<=1 else n_langs+1))
 
     init_wts = new_lm_head.weight.clone().detach()
     init_bs = new_lm_head.bias.clone().detach()

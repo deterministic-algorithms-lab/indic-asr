@@ -8,6 +8,8 @@ from transformers import Wav2Vec2Tokenizer
 from indic_transliteration import sanscript
 from indic_transliteration.sanscript import transliterate
 import enchant
+import nltk
+nltk.download('indian')
 from nltk.corpus import indian
 
 from configs import config
@@ -26,7 +28,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
             for elem in ['̄', '̣', '̐', '́', '़', "'ॉ", '̃', '_', 'ऑ', '^', '…', '°', '̂', '̱',  'ॅ', 'ऍ', ':']:
                 self._add_tokens(elem)
         self.mappings = {'$': ' dollar ', '@' : ' at the rate ', '+': ' plus ', '<':' less than ', '>' : ' greater than ', '&' : ' and ', '%':' percent '}
-        self.hindi_words = [unicodedata.normalize('NFKC', word) for word in nltk.corpus.indian.words('hindi.pos')]
+        self.hindi_words = [unicodedata.normalize('NFKC', word) for word in indian.words('hindi.pos')]
         
     def normalize(self, text):
         """
@@ -62,7 +64,9 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
                 word = transliterated_word
         return unicodedata.normalize('NFKC', word).upper()
         
-    def revert_transliteration(self, texts: List[str], lang_ids: Optional[List[List[int]]]=[])->str:
+    def revert_transliteration(self, texts: List[str], lang_ids: Optional[List[List[int]]]=None)->str:
+        if lang_ids is None:
+            lang_ids = [[]]*len(texts)
         
         back_transliterated_texts = []
 
