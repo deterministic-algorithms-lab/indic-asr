@@ -1,4 +1,4 @@
-from typing import List,Tuple,Union
+from typing import List,Tuple,Union, Optional
 import re
 import unicodedata
 
@@ -62,7 +62,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
                 word = transliterated_word
         return unicodedata.normalize('NFKC', word).upper()
         
-    def revert_transliteration(self, texts: List[str], lang_ids: List[List[int]])->str:
+    def revert_transliteration(self, texts: List[str], lang_ids: Optional[List[List[int]]]=[])->str:
         
         back_transliterated_texts = []
 
@@ -100,7 +100,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         
         return tokens, lang_ids
     
-    def pad_batch_sentences(self, sentences_word: Union[List[List[int]],List[Tuple[List[int],List[int]]]], max_length: int=-1) -> Union[Tuple[torch.FloatTensor, torch.IntTensor],Tuple[torch.FloatTensor, torch.IntTensor,torch.FloatTensor, torch.IntTensor]]:
+    def pad_batch_sentences(self, sentences_word: List[List[int]], max_length: int=-1) -> Tuple[torch.FloatTensor, torch.IntTensor]:
         """
         Pads all list of token ids, in a batch to the maximum length.
         Truncates all sequences to max_length.
@@ -115,7 +115,7 @@ class Wav2Vec2Tok(Wav2Vec2Tokenizer):
         
         return torch.tensor(sentences, dtype=torch.float32), torch.tensor(lengths)
       
-    def batch_tokenize(self, texts: List[str], **kwargs) -> Union[Tuple[torch.FloatTensor, torch.IntTensor],Tuple[torch.FloatTensor, torch.IntTensor,torch.FloatTensor, torch.IntTensor]]:
+    def batch_tokenize(self, texts: List[str], **kwargs) -> Tuple[torch.FloatTensor, torch.IntTensor,torch.FloatTensor, torch.IntTensor]:
         """
         Tokenizes and batches together a list of texts
         """

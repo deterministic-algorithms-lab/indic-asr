@@ -5,14 +5,22 @@ from transformers import Wav2Vec2Model, Wav2Vec2ForCTC
 from transformers.modeling_outputs import CausalLMOutput
 from configs import config
 
-def get_model(tokenizer):
-    
+def get_model(tokenizer, n_langs=2):
+    """Constructs the model with asr and language identification,
+    from the base Wav2Vec2 model by modifying the last lm_head layer.
+    Args:
+        tokenizer: The tokenizer whose length is all the alphabets that 
+                   the model can predict.
+        n_langs: The number of different languages the model needs to distinguish between.
+    Returns:
+        The constructed model, having len(tokenizer)+n_langs+1 outputs in the last layer.
+    """
     model = Wav2Vec2.from_pretrained(config.model)
     
     pt_wts = model.lm_head.weight
     pt_bias = model.lm_head.bias
 
-    new_lm_head = nn.Linear(pt_wts.shape[1], len(tokenizer)+3)
+    new_lm_head = nn.Linear(pt_wts.shape[1], len(tokenizer)+n_langs+1)
 
     init_wts = new_lm_head.weight.clone().detach()
     init_bs = new_lm_head.bias.clone().detach()

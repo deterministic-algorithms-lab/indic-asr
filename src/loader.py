@@ -222,7 +222,7 @@ class CodeSwitchASR(datasets.GeneratorBasedBuilder):
             
             try:
                 audio_dir = 'Audios'
-                speech, sr = sf.read(os.path.join(archive_path, audio_dir, wav_file+'.wav'))
+                speech, sr = sf.read(os.path.join(archive_path, audio_dir, files_n_text[0][0]+'.wav'))
             except:
                 audio_dir = 'audio'
             

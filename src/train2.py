@@ -29,7 +29,7 @@ def save_checkpoint(model, name: str):
     model.save_pretrained(model_path)
 
 def load_checkpoint(model, path: str):
-    model.load_state_dict(torch.load(config.prev_checkpoint+"/pytorch_model.bin"),strict=False)
+    model.load_state_dict(torch.load(config.prev_checkpoint+"/pytorch_model.bin"), strict=False)
     print("model loaded!")
     return model
 
@@ -242,8 +242,8 @@ if __name__ =='__main__':
     wandb.watch(model)
     config.output_directory = wandb.run.dir
 
-    if(config.prev_checkpoint!=""):
-        model=load_checkpoint(model,config.prev_checkpoint)
+    if config.prev_checkpoint!="":
+        model=load_checkpoint(model, config.prev_checkpoint)
     
     params = {'batch_size': config.BATCH_SIZE,}
     
