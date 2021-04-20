@@ -170,7 +170,7 @@ def compute_metric(model, tokenizer, test_dataset):
                         for k,v in tokenizer.mappings.items():
                             transcriptions[0]= transcriptions[0].replace(v.strip(),k)
 
-                    transcriptions[0]=transcriptions[0].replace('<S>','').replace('</S>','')
+                    transcriptions[0]=transcriptions[0].replace('<s>','').replace('</s>','')
                     reference = d['text'].upper()
 
                     if i==show_sample_no or i==0:
@@ -189,6 +189,7 @@ def compute_metric(model, tokenizer, test_dataset):
     print(wer_score)
     
     score=sum(wer_score)/len(wer_score)
+    print('Avg Score: ',score)
     return score
 
 def collate_fn(batch, tokenizer):
@@ -259,7 +260,7 @@ if __name__ =='__main__':
     else:
         mono_dataloader = None
 
-    #print(compute_metric(model, tokenizer, test_dataset))
+    print(compute_metric(model, tokenizer, test_dataset))
 
     if(config.train):
         if not config.mono:

@@ -7,17 +7,17 @@ class config:
 #     'facebook/wav2vec2-base-960h'
     model="facebook/wav2vec2-base-960h"
     fast_LR=1e-3              #To be used when initial weights are frozen
-    LR=1e-5
+    LR=1e-4
     clip_grad_norm=1.0
     EPOCHS=1000
-    num_iters_checkpoint=56000
-    prev_checkpoint=""
+    num_iters_checkpoint=57660
+    prev_checkpoint="./wandb/run-20210418_135042-2wfzsbrd/files/facebook/wav2vec2-base-960h_14"
     
     output_directory="./model/"
     
     os.makedirs(output_directory, exist_ok=True)
     
-    BATCH_SIZE=8
+    BATCH_SIZE=6
     SHUFFLE=True
     eval=True
     train=True
@@ -65,6 +65,7 @@ def get_all_params_dict(config):
         if not ( callable(v) or (k.startswith('__') and k.endswith('__'))):
             params[k]=v
     return params
+
 
 
 
